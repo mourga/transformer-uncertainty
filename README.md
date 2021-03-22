@@ -1,7 +1,7 @@
 # transformer-uncertainty
 Code for evaluating uncertainty estimation methods for Transformer-based architectures in natural language understanding tasks.
 
-Uncertainty Methods
+## Uncertainty Methods
 * Vanilla (deterministic)
 * Monte Carlo dropout
 * Temperature scaling
