@@ -17,3 +17,9 @@ conda install pytorch=1.2.0 torchvision cudatoolkit=10.0 -c pytorch
 pip install -r requirements.txt
 ```
 See this [pytorch page](https://pytorch.org/get-started/previous-versions/) to download correctly pytorch to your machine.
+
+## Datasets
+Download GLUE datasets:
+```
+bash get_data.sh
+```
