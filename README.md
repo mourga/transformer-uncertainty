@@ -23,3 +23,14 @@ Download GLUE datasets:
 ```
 bash get_data.sh
 ```
+## Run model
+For example run:
+```
+python main_transformer --dataset_name rte 
+                        --model_type bert 
+                        --model_name_or_path bert-base-uncased 
+                        --do_lower_case 
+                        --seed 1234 
+                        --unc_method bayes_adapt
+```
+See [main_transformer.py](https://github.com/mourga/transformer-uncertainty/blob/main/main_transformer.py) for the rest of arguments.
