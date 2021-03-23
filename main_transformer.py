@@ -52,46 +52,20 @@ from transformers import (
     set_seed,
 )
 
+
+sys.path.append("../../")
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
 from src.general import acc, f1_macro, precision_macro, recall_macro, create_dir
 from src.glue.run_glue import compute_metrics, train
 from src.metrics import uncertainty_metrics
 from src.temperature_scaling import test_temp_scaling
 
-sys.path.append("../../")
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-
-# from transformers.trainer_utils import is_main_process
-# from modules.data_augmentation.da_methods import select_da_method
-
 from src.transformers.configuration_bert import BertConfig
 from src.transformers.modeling_bert import BertForSequenceClassification
-
-
-# MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING = OrderedDict(
-#     [
-#         (DistilBertConfig, DistilBertForSequenceClassification),
-#         (AlbertConfig, AlbertForSequenceClassification),
-#         (CamembertConfig, CamembertForSequenceClassification),
-#         (XLMRobertaConfig, XLMRobertaForSequenceClassification),
-#         (BartConfig, BartForSequenceClassification),
-#         (LongformerConfig, LongformerForSequenceClassification),
-#         (RobertaConfig, RobertaForSequenceClassification),
-#         (BertConfig, BertForSequenceClassification),
-#         (XLNetConfig, XLNetForSequenceClassification),
-#         (MobileBertConfig, MobileBertForSequenceClassification),
-#         (FlaubertConfig, FlaubertForSequenceClassification),
-#         (XLMConfig, XLMForSequenceClassification),
-#         (ElectraConfig, ElectraForSequenceClassification),
-#     ]
-# )
-
 from src.transformers.processors import processors, output_modes, convert_examples_to_features
-# from utilities.metrics import uncertainty_metrics
-# from utilities.temperature_scaling import test_temp_scaling
-# from utilities.general import create_dir
-# from models.deep.my_run_glue import train, compute_metrics
+
 from sys_config import CACHE_DIR, DATA_DIR, CKPT_DIR, RES_DIR
-# from utilities.training import acc, f1_macro, precision_macro, recall_macro
 
 try:
     from torch.utils.tensorboard import SummaryWriter
@@ -130,6 +104,7 @@ ALL_MODELS = sum(
     (),
 )
 
+# todo add more models
 MODEL_CLASSES = {
     "bert": (BertConfig, BertForSequenceClassification, BertTokenizer),
     # "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
@@ -152,6 +127,7 @@ def get_glue_dataset(args, data_dir, task, model_type, evaluate=False, test=Fals
     :param train: if True return dev set
     :param evaluate: if True return dev set
     :param test: if True return test set
+    :param test: if True return contrast set
     :return:
     """
     processor = processors[task]()
@@ -168,10 +144,6 @@ def get_glue_dataset(args, data_dir, task, model_type, evaluate=False, test=Fals
         cached_dataset = os.path.join(
             data_dir,
             filename
-            # "cached_{}_{}_original".format(
-            #     "test",
-            #     str(task),
-            # ),
         )
     else:
         if evaluate and contrast:
@@ -181,10 +153,6 @@ def get_glue_dataset(args, data_dir, task, model_type, evaluate=False, test=Fals
         cached_dataset = os.path.join(
             data_dir,
             filename,
-            # "cached_{}_{}_original".format(
-            #     "dev" if evaluate else "train",
-            #     str(task),
-            # ),
         )
     if os.path.exists(cached_dataset):
         logger.info("Loading dataset from cached file %s", cached_dataset)
@@ -449,13 +417,6 @@ def get_glue_tensor_dataset(X_inds, args, task, tokenizer, train=False,
         return dataset
 
 
-# def set_seed(args):
-#     random.seed(args.seed)
-#     np.random.seed(args.seed)
-#     torch.manual_seed(args.seed)
-#     if args.n_gpu > 0:
-#         torch.cuda.manual_seed_all(args.seed)
-
 
 def my_evaluate(eval_dataset, args, model, prefix="", al_test=False, mc_samples=None,
                 return_bert_embs=False):
@@ -666,39 +627,9 @@ def train_transformer(args, train_dataset, eval_dataset, model, tokenizer):
             # result = dict((k + "_{}".format(global_step), v) for k, v in result.items())
             # results.update(result)
 
-    # result['val_adv_inds'] = []
-    # if val_augm_dataset is not None:
-    #     inds = [ori2augm_val[x] for x in X_val_inds]
-    #     tensor_lists = [val_augm_dataset.tensors[i][inds] for i in range(len(eval_dataset.tensors))]
-    #     _val_augm_dataset = TensorDataset(*tensor_lists)  # sample augmended val set to be same length as val
-    #
-    #     augm_result, augm_logits = my_evaluate(_val_augm_dataset, args, model, prefix=prefix)
-    #     preds_ori = np.argmax(logits, axis=1)
-    #     preds_ori = preds_ori[inds]
-    #     preds_aug = np.argmax(augm_logits, axis=1)
-    #
-    #     assert len(preds_ori)==len(preds_aug), "ori {}, augm {}".format(len(preds_ori), len(preds_aug))
-    #
-    #     adversarial_inds = [i for i in range(len(preds_ori)) if preds_ori.numpy()[i] != preds_aug.numpy()[i]]
-    #     num_adv = len(adversarial_inds)
-    #
-    #
-    #
-    #     if num_adv != 0:
-    #         print('\nAugmenting val set with {} adversarial examples'.format(num_adv))
-    #         tensor_lists = [torch.cat((eval_dataset.tensors[i],val_augm_dataset.tensors[i][adversarial_inds]),0)
-    #                         for i in range(len(eval_dataset.tensors))]
-    #         eval_dataset = TensorDataset(*tensor_lists)
-    #         augm2ori_val = {v: k for k, v in ori2augm_val.items()}
-    #         adversarial_ori_inds = [augm2ori_val[i] for i in adversarial_inds]
-    #         X_val_inds = [i for i in X_val_inds if i not in adversarial_ori_inds]
-    #         result['val_adv_inds'] = list(map(int, adversarial_ori_inds))
-    #     else:
-    #         print('\nNo adversarial examples on val set...')
-    #         result['val_adv_inds'] = []
-    #         # adversarial_ori_inds = None
+
     eval_loss = val_loss
-    # return model, tr_loss, eval_loss, result, eval_dataset, X_val_inds
+
     return model, tr_loss, eval_loss, result
 
 
