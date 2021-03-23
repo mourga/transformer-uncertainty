@@ -38,3 +38,7 @@ See [main_transformer.py](https://github.com/mourga/transformer-uncertainty/blob
 ## Related Work
 * [Can You Trust Your Model’s Uncertainty? Evaluating
 Predictive Uncertainty Under Dataset Shift](https://papers.nips.cc/paper/2019/file/8558cb408c1d76621371888657d2eb1d-Paper.pdf)
+* [BayesAdapter: Being Bayesian, Inexpensively and Robustly, via Bayesian Fine-tuning](https://openreview.net/forum?id=LjFGgI-_tT0)
+* [Parameter-Efficient Transfer Learning for NLP](http://proceedings.mlr.press/v97/houlsby19a/houlsby19a.pdf)
+* [Weight Uncertainty in Neural Networks](http://proceedings.mlr.press/v37/blundell15.pdf)
+* [Flipout: Efficient Pseudo-Independent Weight Perturbations on Mini-Batches](https://openreview.net/pdf?id=rJNpifWAb)
