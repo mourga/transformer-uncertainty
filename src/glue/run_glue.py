@@ -148,13 +148,6 @@ task_to_keys = {
     "wnli": ("sentence1", "sentence2"),
 }
 
-# def set_seed(args):
-#     random.seed(args.seed)
-#     np.random.seed(args.seed)
-#     torch.manual_seed(args.seed)
-#     if args.n_gpu > 0:
-#         torch.cuda.manual_seed_all(args.seed)
-
 def repeat_dataloader(iterable):
     """ repeat dataloader """
     while True:
@@ -207,46 +200,19 @@ def train(args, train_dataset, eval_dataset, model, tokenizer, unsup_dataset=Non
     print("Total Params:", number_h(total_params))
     print("Total Trainable Params:", number_h(total_trainable_params))
 
-    # if args.local_rank in [-1, 0]:
-    #     tb_writer = SummaryWriter()
+    if args.local_rank in [-1, 0]:
+        tb_writer = SummaryWriter()
 
-    # UDA
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
-    sup_criterion = nn.CrossEntropyLoss(reduction='none')
-    sup_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
-    sup_loader = DataLoader(train_dataset, sampler=sup_sampler, batch_size=args.train_batch_size)
-    data_loader = sup_loader
-    if args.uda:
-        assert unsup_dataset is not None
-        unsup_criterion = nn.KLDivLoss(reduction='none')
-        unsup_sampler = RandomSampler(unsup_dataset) if args.local_rank == -1 else DistributedSampler(unsup_dataset)
-        unsup_loader = DataLoader(unsup_dataset, sampler=unsup_sampler, batch_size=args.train_batch_size*2)
-        data_loader = unsup_loader
-        sup_loader = repeat_dataloader(sup_loader)
-    #     data_iter = [sup_loader, unsup_loader] # if cfg.mode=='train' \
-    #         # else [data.sup_data_iter(), data.unsup_data_iter(), data.eval_data_iter()]  # train_eval
-    # else:
-    #     data_iter = [sup_loader]
+    sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
+    data_loader = DataLoader(train_dataset, sampler=sampler, batch_size=args.train_batch_size)
 
     if args.max_steps > 0:
         t_total = args.max_steps
-        # args.num_train_epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
         args.num_train_epochs = args.max_steps // (len(data_loader) // args.gradient_accumulation_steps) + 1
     else:
-        # t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
         t_total = len(data_loader) // args.gradient_accumulation_steps * args.num_train_epochs
     args.total_steps = t_total
-    # train_dataloader = sup_loader
-
-    # args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
-    # train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
-    # train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
-
-    # if args.max_steps > 0:
-    #     t_total = args.max_steps
-    #     args.num_train_epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
-    # else:
-    #     t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
 
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ["bias", "LayerNorm.weight"]
@@ -271,22 +237,6 @@ def train(args, train_dataset, eval_dataset, model, tokenizer, unsup_dataset=Non
         # Load in optimizer and scheduler states
         optimizer.load_state_dict(torch.load(os.path.join(args.model_name_or_path, "optimizer.pt")))
         scheduler.load_state_dict(torch.load(os.path.join(args.model_name_or_path, "scheduler.pt")))
-
-    # if hasattr(args, 'adaptation'):
-    #     if args.adaptation or args.adaptation_best and args.adapt_new:
-    #         optim_path = args.output_dir
-    #         if args.adaptation and hasattr(args, 'previous_output_dir'):
-    #             optim_path = args.previous_output_dir
-    #         elif args.adaptation_best and hasattr(args, 'best_output_dir'):
-    #             optim_path = args.best_output_dir
-    #
-    #         # Check if saved optimizer or scheduler states exist
-    #         if os.path.isfile(os.path.join(optim_path, "optimizer.pt")) and os.path.isfile(
-    #                 os.path.join(optim_path, "scheduler.pt")
-    #         ):
-    #             # Load in optimizer and scheduler states
-    #             optimizer.load_state_dict(torch.load(os.path.join(optim_path, "optimizer.pt")))
-    #             scheduler.load_state_dict(torch.load(os.path.join(optim_path, "scheduler.pt")))
 
     if args.fp16:
         try:
@@ -349,12 +299,9 @@ def train(args, train_dataset, eval_dataset, model, tokenizer, unsup_dataset=Non
     train_iterator = trange(
         epochs_trained, int(args.num_train_epochs), desc="Epoch", disable=args.local_rank not in [-1, 0],
     )
-    set_seed(args)  # Added here for reproducibility
+    set_seed(args.seed)  # Added here for reproducibility
     for _ in train_iterator:
-        if args.uda:
-            epoch_iterator = tqdm(unsup_loader, desc="Iteration", disable=args.local_rank not in [-1, 0])
-        else:
-            epoch_iterator = tqdm(sup_loader, desc="Iteration", disable=args.local_rank not in [-1, 0])
+        epoch_iterator = tqdm(data_loader, desc="Iteration", disable=args.local_rank not in [-1, 0])
 
         for step, batch in enumerate(epoch_iterator):
 
@@ -364,28 +311,6 @@ def train(args, train_dataset, eval_dataset, model, tokenizer, unsup_dataset=Non
                 continue
 
             model.train()
-            # if args.uda:
-            #     sup_batch = [t.to(args.device) for t in next(sup_loader)]
-            #     unsup_batch = tuple(t.to(args.device) for t in batch)
-            #
-            #     optimizer.zero_grad()
-            #     final_loss, sup_loss, unsup_loss = get_loss(args, model, sup_batch, unsup_batch, global_step,
-            #                                                 sup_criterion, unsup_criterion)
-            #     logger.info('final=%5.3f unsup=%5.3f sup=%5.3f' \
-            #                              % (final_loss.item(), unsup_loss.item(), sup_loss.item()))
-            #     epoch_iterator.set_description('final=%5.3f unsup=%5.3f sup=%5.3f' \
-            #                              % (final_loss.item(), unsup_loss.item(), sup_loss.item()))
-            #     loss = final_loss
-            # else:
-            #     batch = tuple(t.to(args.device) for t in batch)
-            #     inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[3]}
-            #     if args.model_type != "distilbert":
-            #         inputs["token_type_ids"] = (
-            #             batch[2] if args.model_type in ["bert", "xlnet", "albert"] else None
-            #         )  # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
-            #     outputs = model(**inputs)
-            #     loss = outputs[0]  # model outputs are always tuple in transformers (see doc)
-            #     epoch_iterator.set_description('loss=%5.3f' % (loss.item()))
 
             batch = tuple(t.to(args.device) for t in batch)
             inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[3]}
@@ -448,6 +373,7 @@ def train(args, train_dataset, eval_dataset, model, tokenizer, unsup_dataset=Non
                                     output_dir = args.current_output_dir
                                 else:
                                     output_dir = args.output_dir
+                                print(output_dir)
                                 if not os.path.exists(output_dir):
                                     os.makedirs(output_dir)
                                 model_to_save = (
@@ -482,24 +408,6 @@ def train(args, train_dataset, eval_dataset, model, tokenizer, unsup_dataset=Non
                     #     tb_writer.add_scalar(key, value, global_step)
                     print(json.dumps({**logs, **{"step": global_step}}))
 
-                # if args.local_rank in [-1, 0] and args.save_steps > 0 and global_step % args.save_steps == 0:
-                #     # Save model checkpoint
-                #     output_dir = os.path.join(args.output_dir, "checkpoint-{}".format(global_step))
-                #     if not os.path.exists(output_dir):
-                #         os.makedirs(output_dir)
-                #     model_to_save = (
-                #         model.module if hasattr(model, "module") else model
-                #     )  # Take care of distributed/parallel training
-                #     model_to_save.save_pretrained(output_dir)
-                #     tokenizer.save_pretrained(output_dir)
-                #
-                #     torch.save(args, os.path.join(output_dir, "training_args.bin"))
-                #     logger.info("Saving model checkpoint to %s", output_dir)
-                #
-                #     torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
-                #     torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
-                #     logger.info("Saving optimizer and scheduler states to %s", output_dir)
-
                 if args.device.type == 'cuda':
                     try:
                         torch.cuda.empty_cache()
@@ -514,8 +422,8 @@ def train(args, train_dataset, eval_dataset, model, tokenizer, unsup_dataset=Non
             train_iterator.close()
             break
 
-    # if args.local_rank in [-1, 0]:
-    #     tb_writer.close()
+    if args.local_rank in [-1, 0]:
+        tb_writer.close()
 
     return global_step, tr_loss / global_step, float(best_val_acc), best_val_loss
 

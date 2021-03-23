@@ -59,7 +59,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from src.general import acc, f1_macro, precision_macro, recall_macro, create_dir
 from src.glue.run_glue import compute_metrics, train
 from src.metrics import uncertainty_metrics
-from src.temperature_scaling import test_temp_scaling
+from src.temperature_scaling import tune_temperature
 
 from src.transformers.configuration_bert import BertConfig
 from src.transformers.modeling_bert import BertForSequenceClassification
@@ -87,22 +87,22 @@ task_to_keys = {
     "wnli": ("sentence1", "sentence2"),
 }
 
-ALL_MODELS = sum(
-    (
-        tuple(conf.pretrained_config_archive_map.keys())
-        for conf in (
-        BertConfig,
-        XLNetConfig,
-        XLMConfig,
-        RobertaConfig,
-        DistilBertConfig,
-        AlbertConfig,
-        XLMRobertaConfig,
-        FlaubertConfig,
-    )
-    ),
-    (),
-)
+# ALL_MODELS = sum(
+#     (
+#         tuple(conf.pretrained_config_archive_map.keys())
+#         for conf in (
+#         BertConfig,
+#         XLNetConfig,
+#         XLMConfig,
+#         RobertaConfig,
+#         DistilBertConfig,
+#         AlbertConfig,
+#         XLMRobertaConfig,
+#         FlaubertConfig,
+#     )
+#     ),
+#     (),
+# )
 
 # todo add more models
 MODEL_CLASSES = {
@@ -418,7 +418,7 @@ def get_glue_tensor_dataset(X_inds, args, task, tokenizer, train=False,
 
 
 
-def my_evaluate(eval_dataset, args, model, prefix="", al_test=False, mc_samples=None,
+def my_evaluate(eval_dataset, args, model, prefix="", mc_samples=None,
                 return_bert_embs=False):
     """
     Evaluate model using 'eval_dataset'.
@@ -461,8 +461,8 @@ def my_evaluate(eval_dataset, args, model, prefix="", al_test=False, mc_samples=
         out_label_ids = None
         bert_output_list = None
 
-        if mc_samples is not None and al_test:
-            # Evaluation of Dpool - MC dropout
+        if mc_samples is not None:
+            # MC dropout
             test_losses = []
             logits_list = []
             for i in range(1, mc_samples + 1):
@@ -502,7 +502,7 @@ def my_evaluate(eval_dataset, args, model, prefix="", al_test=False, mc_samples=
             logits = logits_list
             preds = torch.mean(torch.stack(logits), 0).detach().cpu().numpy()
         else:
-            # Evaluation of Dval - or just no MC dropout
+            # Standard inference (no MC dropout)
             for batch in tqdm(eval_dataloader, desc="Evaluating"):
                 model.eval()
                 batch = tuple(t.to(args.device) for t in batch)
@@ -515,7 +515,7 @@ def my_evaluate(eval_dataset, args, model, prefix="", al_test=False, mc_samples=
                         )  # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
                     outputs = model(**inputs)
                     labels = inputs.pop("labels",None)
-                    if args.acquisition == "adv_train" and return_bert_embs:
+                    if return_bert_embs:
                         bert_output = model.bert(**inputs)[1]
                     tmp_eval_loss, logits = outputs[:2]
 
@@ -527,14 +527,14 @@ def my_evaluate(eval_dataset, args, model, prefix="", al_test=False, mc_samples=
                     preds = logits.detach().cpu().numpy()
                     # out_label_ids = inputs["labels"].detach().cpu().numpy()
                     out_label_ids = labels.detach().cpu().numpy()
-                    if args.acquisition == "adv_train" and return_bert_embs:
+                    if return_bert_embs:
                         # bert_output_list = bert_output.detach().cpu().numpy()
                         bert_output_list = bert_output
                 else:
                     preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
                     # out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
                     out_label_ids = np.append(out_label_ids, labels.detach().cpu().numpy(), axis=0)
-                    if args.acquisition == "adv_train" and return_bert_embs:
+                    if return_bert_embs:
                         # bert_output_list = np.append(bert_output_list, bert_output.detach().cpu().numpy(), axis=0)
                         bert_output_list = torch.cat((bert_output_list, bert_output),0)
             eval_loss = eval_loss / nb_eval_steps
@@ -549,7 +549,8 @@ def my_evaluate(eval_dataset, args, model, prefix="", al_test=False, mc_samples=
             # recall = round(recall_macro(out_label_ids, preds), 4)
 
             # calibration scores
-            calibration_scores = uncertainty_metrics(logits, out_label_ids, pool=al_test, num_classes=args.num_classes)
+            calibration_scores = uncertainty_metrics(logits, out_label_ids,
+                                                     num_classes=args.num_classes)
         elif args.output_mode == "regression":
             preds = np.squeeze(preds)
             calibration_scores = {}
@@ -604,7 +605,7 @@ def train_transformer(args, train_dataset, eval_dataset, model, tokenizer):
     # Evaluation
     results = {}
     if args.do_eval and args.local_rank in [-1, 0]:
-        # tokenizer = tokenizer_class.from_pretrained(args.output_dir, do_lower_case=args.do_lower_case)
+
         # checkpoints = [args.output_dir]
         checkpoints = [args.current_output_dir]
         # if args.eval_all_checkpoints:
@@ -619,14 +620,12 @@ def train_transformer(args, train_dataset, eval_dataset, model, tokenizer):
             global_step = checkpoint.split("-")[-1] if len(checkpoints) > 1 else ""
             prefix = checkpoint.split("/")[-1] if checkpoint.find("checkpoint") != -1 else ""
 
-            # model = model_class.from_pretrained(checkpoint)
-            model = AutoModelForSequenceClassification.from_pretrained(checkpoint)
+            model = model_class.from_pretrained(checkpoint)
             model.to(args.device)
 
             result, logits = my_evaluate(eval_dataset, args, model, prefix=prefix)
             # result = dict((k + "_{}".format(global_step), v) for k, v in result.items())
             # results.update(result)
-
 
     eval_loss = val_loss
 
@@ -700,7 +699,7 @@ if __name__ == '__main__':
         help="Number of updates steps to accumulate before performing a backward/update pass.",
     )
     parser.add_argument(
-        "--num_train_epochs", default=3.0, type=float, help="Total number of training epochs to perform.",
+        "--num_train_epochs", default=5.0, type=float, help="Total number of training epochs to perform.",
     )
     parser.add_argument(
         "--max_steps",
@@ -717,7 +716,7 @@ if __name__ == '__main__':
         help="Evaluate all checkpoints starting with the same prefix as model_name ending and ending with step number",
     )
     parser.add_argument("--learning_rate", default=2e-5, type=float, help="The initial learning rate for Adam.")
-    parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight decay if we apply some.")
+    parser.add_argument("--weight_decay", default=1e-5, type=float, help="Weight decay if we apply some.")
     parser.add_argument("--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer.")
     parser.add_argument("--max_grad_norm", default=1.0, type=float, help="Max gradient norm.")
     parser.add_argument("-seed", "--seed", required=False, type=int, help="seed")
@@ -726,8 +725,12 @@ if __name__ == '__main__':
                         type=str,
                         help="experiment indicator")
     parser.add_argument("-patience", "--patience", required=False, type=int, help="patience for early stopping (steps)")
-    parser.add_argument("--test_uncertainty", required=False, type=bool, default=True,
-                        help=" whether to evaluate uncertainty estimates for [vanilla, mc_3, mc_5, mc_10]")
+    parser.add_argument("--use_adapter", required=False, type=bool,
+                        default=False,
+                        help="if True finetune model with added adapter layers")
+    parser.add_argument("--use_bayes_adapter", required=False, type=bool,
+                        default=False,
+                        help="if True finetune model with added Bayes adapter layers")
     ##########################################################################
     # Data args
     ##########################################################################
@@ -738,8 +741,15 @@ if __name__ == '__main__':
     ##########################################################################
     # Uncertainty estimation args
     ##########################################################################
-    parser.add_argument("--unc_method", default="vanilla", type=str, help="Choose uncertainty estimation method from "
-                                                                          "[vanilla, mc_M, ensemble, bayes_adapt, bayes_top]")
+    parser.add_argument("--unc_method",
+                        default="vanilla",
+                        type=str,
+                        help="Choose uncertainty estimation method from "
+                             "[vanilla, mc, ensemble, temp_scale, bayes_adapt, bayes_top]"
+                        )
+    parser.add_argument("--test_all_uncertainty", required=False, type=bool, default=True,
+                        help=" if True evaluate [vanilla, mc_3, mc_5, mc_10, mc_20, temp_scaling] "
+                             "uncertainty methods for the model")
     ##########################################################################
     # Server args
     ##########################################################################
@@ -785,9 +795,11 @@ if __name__ == '__main__':
     # Output dir
     output_dir = os.path.join(CKPT_DIR, '{}_{}'.format(args.dataset_name, args.model_type))
     args.output_dir = os.path.join(output_dir, 'all_{}'.format(args.seed))
+    if args.use_adapter: args.output_dir += '-adapter'
+    if args.use_bayes_adapter: args.output_dir += '-bayes-adapter'
     if args.indicator is not None: args.output_dir += '-{}'.format(args.indicator)
     if args.patience is not None: args.output_dir += '-early{}'.format(int(args.num_train_epochs))
-
+    args.current_output_dir = args.output_dir
     if (
             os.path.exists(args.output_dir)
             and os.listdir(args.output_dir)
@@ -840,6 +852,8 @@ if __name__ == '__main__':
         num_labels=num_labels,
         finetuning_task=args.task_name,
         cache_dir=args.cache_dir if args.cache_dir else None,
+        use_adapter=args.use_adapter,
+        use_bayes_adapter=args.use_bayes_adapter,
     )
     tokenizer = tokenizer_class.from_pretrained(
         args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
@@ -857,10 +871,10 @@ if __name__ == '__main__':
     #########################################
     path = os.path.join(RES_DIR, '{}_{}_100%'.format(args.task_name, args.model_type))
     create_dir(path)
-    name = '{}_{}_lr_{}_bs_{}_epochs_{}'.format(args.unc_method,
-                                                args.seed, args.learning_rate,
+    name = 'seed_{}_lr_{}_bs_{}_epochs_{}'.format(args.seed, args.learning_rate,
                                                     args.per_gpu_train_batch_size,
                                                     args.num_train_epochs)
+    if args.use_adapter: name += '_adapters'
     if args.indicator is not None: name += '_{}'.format(args.indicator)
     print(name)
 
@@ -925,14 +939,6 @@ if __name__ == '__main__':
     if args.logging_steps < 1:
         args.logging_steps = 1
 
-
-    # model = AutoModelForSequenceClassification.from_pretrained(
-    #     args.model_name_or_path,
-    #     from_tf=bool(".ckpt" in args.model_name_or_path),
-    #     config=config,
-    #     cache_dir=args.cache_dir,
-    # )
-
     if args.local_rank == 0:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
 
@@ -948,45 +954,39 @@ if __name__ == '__main__':
     #######################
     # Test
     #######################
-    test_results, test_logits = my_evaluate(test_dataset, args, model, prefix="", al_test=False, mc_samples=None)
+    # comment out because we do it later ("vanilla")
+    # test_results, test_logits = my_evaluate(test_dataset, args, model, prefix="", mc_samples=None)
 
-    print('Saving json with the results....')
+    # print('Saving json with the results....')
+    #
+    # results = {"val_results": val_results, "test_results": test_results}
+    # with open(os.path.join(dirname, 'results.json'), 'w') as f:
+    #     json.dump(results, f)
 
-    results = {"val_results": val_results, "test_results": test_results}
-    with open(os.path.join(dirname, 'results.json'), 'w') as f:
-        json.dump(results, f)
-
-    #######################
+    #######################s
     # Test uncertainty
     #######################
-    if args.test_uncertainty:
-        # vanilla
-        vanilla_results_val, _ = my_evaluate(eval_dataset, args, model, al_test=False, mc_samples=None)
-        vanilla_results_test, _ = my_evaluate(test_dataset, args, model, al_test=False, mc_samples=None)
+    print('Evaluate uncertainty on dev & test sets....')
+    if args.test_all_uncertainty:
+        # Vanilla
+        vanilla_results_val, vanilla_val_logits = my_evaluate(eval_dataset, args, model, mc_samples=None)
+        vanilla_results_test, vanilla_test_logits = my_evaluate(test_dataset, args, model, mc_samples=None)
         vanilla_results = {"val_results": vanilla_results_val, "test_results": vanilla_results_test}
         with open(os.path.join(dirname, 'vanilla_results.json'), 'w') as f:
             json.dump(vanilla_results, f)
-        # MC 3
-        mc3_results_val, _ = my_evaluate(eval_dataset, args, model, al_test=True, mc_samples=3)
-        mc3_results_test, _ = my_evaluate(test_dataset, args, model, al_test=True, mc_samples=3)
-        mc3_results = {"val_results": mc3_results_val, "test_results": mc3_results_test}
-        with open(os.path.join(dirname, 'mc3_results.json'), 'w') as f:
-            json.dump(mc3_results, f)
-        # MC 5
-        mc5_results_val, _ = my_evaluate(eval_dataset, args, model, al_test=True, mc_samples=5)
-        mc5_results_test, _ = my_evaluate(test_dataset, args, model, al_test=True, mc_samples=5)
-        mc5_results = {"val_results": mc5_results_val, "test_results": mc5_results_test}
-        with open(os.path.join(dirname, 'mc5_results.json'), 'w') as f:
-            json.dump(mc5_results, f)
-        # MC 10
-        mc10_results_val, _ = my_evaluate(eval_dataset, args, model, al_test=True, mc_samples=10)
-        mc10_results_test, _ = my_evaluate(test_dataset, args, model, al_test=True, mc_samples=10)
-        mc10_results = {"val_results": mc10_results_val, "test_results": mc10_results_test}
-        with open(os.path.join(dirname, 'mc10_results.json'), 'w') as f:
-            json.dump(mc10_results, f)
+        # Monte Carlo dropout
+        # for m in [3,5,10,20]:
+        #     mc_results_val, _ = my_evaluate(eval_dataset, args, model, mc_samples=m)
+        #     mc_results_test, _ = my_evaluate(test_dataset, args, model, mc_samples=m)
+        #     mc_results = {"val_results": mc_results_val, "test_results": mc_results_test}
+        #     with open(os.path.join(dirname, 'mc{}_results.json'.format(m)), 'w') as f:
+        #         json.dump(mc_results, f)
         # Temperature Scaling
-        temp_scores_val, _ = test_temp_scaling(eval_dataset, args, model)
-        temp_scores_test, _ = test_temp_scaling(test_dataset, args, model)
+        temp_model = tune_temperature(eval_dataset, args, model, return_model_temp=True)
+        temp_scores_val = temp_model.temp_scale_metrics(args.task_name, vanilla_val_logits,
+                                                        vanilla_results_val['gold_labels'])
+        temp_scores_test = temp_model.temp_scale_metrics(args.task_name, vanilla_test_logits,
+                                                        vanilla_results_test['gold_labels'])
         temp_scores = {"val_results": temp_scores_val, "test_results": temp_scores_test}
         with open(os.path.join(dirname, 'temp_scale_results.json'), 'w') as f:
             json.dump(temp_scores, f)

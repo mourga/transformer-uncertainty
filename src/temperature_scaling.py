@@ -14,7 +14,7 @@ sys.path.append("../")
 sys.path.append("../../")
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-# from utilities.metrics import uncertainty_metrics
+from src.glue.run_glue import compute_metrics
 from src.metrics import uncertainty_metrics
 
 """
@@ -56,7 +56,7 @@ class ModelWithTemperature(nn.Module):
     # This function probably should live outside of this class, but whatever
     def set_temperature(self, valid_loader, device, model_type):
         """
-        Tune the tempearature of the model (using the validation set).
+        Tune the temperature of the model (using the validation set).
         We're going to set it to optimize NLL.
         valid_loader (DataLoader): validation set loader
         """
@@ -125,6 +125,14 @@ class ModelWithTemperature(nn.Module):
 
         return self
 
+    def temp_scale_metrics(self, task, logits, labels):
+        new_logits = self.temperature_scale(logits)
+        preds = np.argmax(new_logits.detach().numpy(), axis=1)
+        result = compute_metrics(task, preds, labels)
+        calibration_scores = uncertainty_metrics(new_logits.detach(), labels)
+        calibration_scores.update({"temperature": float(self.temperature)})
+        result.update(calibration_scores)
+        return result
 
 class _ECELoss(nn.Module):
     """
@@ -168,7 +176,7 @@ class _ECELoss(nn.Module):
         return ece
 
 
-def test_temp_scaling(eval_dataset, args, model):
+def tune_temperature(eval_dataset, args, model, return_model_temp=False):
     # Now we're going to wrap the model with a decorator that adds temperature scaling
     tmp_model = ModelWithTemperature(model)
 
@@ -178,9 +186,9 @@ def test_temp_scaling(eval_dataset, args, model):
 
     # Tune the model temperature, and save the results
     tmp_model.set_temperature(eval_dataloader, args.device, args.model_type)
-    model_filename = os.path.join(args.output_dir, 'model_with_temperature.pth')
-    torch.save(model.state_dict(), model_filename)
-    print('Temperature scaled model saved to %s' % model_filename)
+    # model_filename = os.path.join(args.output_dir, 'model_with_temperature.pth')
+    # torch.save(model.state_dict(), model_filename)
+    # print('Temperature scaled model saved to %s' % model_filename)
     print('Done!')
 
     temperature = tmp_model.temperature
@@ -188,4 +196,7 @@ def test_temp_scaling(eval_dataset, args, model):
     labels = tmp_model.labels
     calibration_scores = uncertainty_metrics(logits, labels.detach().cpu().numpy())
     calibration_scores.update({"temperature": float(temperature)})
-    return calibration_scores, logits
+    if return_model_temp:
+        return tmp_model
+    else:
+        return calibration_scores, logits

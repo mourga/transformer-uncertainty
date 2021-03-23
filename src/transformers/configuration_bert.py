@@ -126,6 +126,7 @@ class BertConfig(PretrainedConfig):
         layer_norm_eps=1e-12,
         # OUR ADDITIONS
         use_adapter=False,
+        use_bayes_adapter=False,
         adapter_act="gelu",
         adapter_size=64,
         adapter_initializer_range=0.0002,
@@ -149,6 +150,7 @@ class BertConfig(PretrainedConfig):
         # OUR ADDITIONS
         # Adapter config
         self.use_adapter = use_adapter
+        self.use_bayes_adapter = use_bayes_adapter
         self.adapter_act = adapter_act
         self.adapter_size = adapter_size
         self.adapter_initializer_range = adapter_initializer_range
