@@ -26,6 +26,7 @@ sys.path.append("../../")
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from sys_config import DATA_DIR
 
+URLLIB = urllib.request
 TASKS = ["CoLA", "SST", "MRPC", "QQP", "STS", "MNLI", "QNLI", "RTE", "WNLI", "diagnostic"]
 TASK2PATH = {"CoLA": 'https://dl.fbaipublicfiles.com/glue/data/CoLA.zip',
              "SST": 'https://dl.fbaipublicfiles.com/glue/data/SST-2.zip',
