@@ -208,35 +208,42 @@ class Adapter(nn.Module):
 class BayesAdapter(nn.Module):
     def __init__(self, config):
         super(BayesAdapter, self).__init__()
-        self.down_project_mu = nn.Linear(config.hidden_size, config.adapter_size)
-        self.down_project_s = nn.Linear(config.hidden_size, config.adapter_size)
+        self.down_project = nn.Linear(config.hidden_size, config.adapter_size)
+        ## drop out to act as probabilistic variable to 
+        ## bayesian layer up_project
+        self.down_dropout = nn.Dropout(config.hidden_dropout_prob)
         self.activation = ACT2FN[config.adapter_act] \
             if isinstance(config.adapter_act, str) else config.adapter_act
-        self.up_project = nn.Linear(config.adapter_size, config.hidden_size)
+        self.up_project_mu = nn.Linear(config.adapter_size, config.hidden_size)
+        self.up_project_sigma = nn.Linear(config.adapter_size, config.hidden_size)
         self.init_weights(config)
 
     def forward(self, hidden_states):
+        
+        down_projected = self.down_project(hidden_states)
+        down_projected = self.down_dropout(down_projected)
+        
+        activated = self.activation(down_projected)
 
-        mu = self.down_project_mu(hidden_states)
-        sigma = self.down_project_s(hidden_states)
+        mu = self.up_project_mu(hidden_states)
+        sigma = self.up_project_sigma(hidden_states)
 
         distribution = torch.distributions.Normal(loc=mu, scale=sigma)
 
-        down_projected = distribution.rsample()
+        up_projected = distribution.rsample()
 
-        activated = self.activation(down_projected)
-        up_projected = self.up_project(activated)
+        ### problem LETS DISCUSS
         return hidden_states + up_projected
 
     def init_weights(self, config):
         # Slightly different from the TF version which uses truncated_normal for initialization
         # cf https://github.com/pytorch/pytorch/pull/5617
-        self.down_project_mu.weight.data.normal_(mean=0.0, std=1.)
-        self.down_project_s.weight.data.normal_(mean=0.0, std=1.)
-        self.down_project_mu.bias.data.zero_()
-        self.down_project_s.bias.data.zero_()
-        self.up_project.weight.data.normal_(mean=0.0, std=config.adapter_initializer_range)
-        self.up_project.bias.data.zero_()
+        self.down_project.weight.data.normal_(mean=0.0, std=1.)
+        self.down_project.bias.data.zero_()
+        self.up_project_mu.weight.data.normal_(mean=0.0, std=config.adapter_initializer_range)
+        self.up_project_mu.bias.data.zero_()
+        self.up_project_sigma.weight.data.normal_(mean=0.0, std=config.adapter_initializer_range)
+        self.up_project_sigma.bias.data.zero_()
 
 class BertEmbeddings(nn.Module):
     """Construct the embeddings from word, position and token_type embeddings."""
