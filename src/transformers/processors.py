@@ -178,14 +178,54 @@ class MrpcProcessor(DataProcessor):
 
     def get_train_examples(self, data_dir):
         """See base class."""
-        logger.info("LOOKING AT {}".format(os.path.join(data_dir, "train.tsv")))
-        return self._create_examples(self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+        if not os.path.isfile(os.path.join(data_dir, "train_42.json")):
+            self._train_dev_split(data_dir)
+        with open(os.path.join(data_dir, "train_42.json")) as json_file:
+            [X_train, y_train] = json.load(json_file)
+        train_examples = self._create_examples(zip(X_train, y_train), "train")
+        return train_examples
+        # logger.info("LOOKING AT {}".format(os.path.join(data_dir, "train.tsv")))
+        # return self._create_examples(self._read_tsv(os.path.join(data_dir, "msr_paraphrase_train.txt")), "train")
 
     def get_dev_examples(self, data_dir):
         """See base class."""
-        return self._create_examples(self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+        if not os.path.isfile(os.path.join(data_dir, "dev_42.json")):
+            self._train_dev_split(data_dir)
+        with open(os.path.join(data_dir, "dev_42.json")) as json_file:
+            [X_val, y_val] = json.load(json_file)
+        dev_examples = self._create_examples(zip(X_val, y_val), "dev")
+        return dev_examples
+        # return self._create_examples(self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
 
+    def get_test_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(self._read_tsv(os.path.join(data_dir, "msr_paraphrase_test.txt")), "test")
 
+    def _train_dev_split(self, data_dir, seed=42):
+        """Splits train set into train and dev sets."""
+        lines = self._read_tsv(os.path.join(data_dir, "msr_paraphrase_train.txt"))
+        X = []
+        Y = []
+        for (i, line) in enumerate(lines):
+            if i == 0:
+                continue
+            # guid = "%s-%s" % (i)
+            text_a = line[3]
+            text_b = line[4]
+            label = line[0]
+            X.append([text_a, text_b])
+            Y.append(label)
+        X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.1, stratify=Y, random_state=seed)
+
+        # Write the train set into a json file (for this seed)
+        with open(os.path.join(data_dir, "train_{}.json".format(seed)), "w") as f:
+            json.dump([X_train , Y_train], f)
+
+        # Write the dev set into a json file (for this seed)
+        with open(os.path.join(data_dir, "dev_{}.json".format(seed)), "w") as f:
+            json.dump([X_val , Y_val], f)
+
+        return
 
     def get_labels(self):
         """See base class."""
@@ -195,12 +235,22 @@ class MrpcProcessor(DataProcessor):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
-            if i == 0:
-                continue
-            guid = "%s-%s" % (set_type, i)
-            text_a = line[3]
-            text_b = line[4]
-            label = line[0]
+            if set_type=='test':
+                if i == 0:
+                    continue
+                guid = "%s-%s" % (set_type, i)
+                text_a = line[3]
+                text_b = line[4]
+                label = line[0]
+            else:
+                guid = "%s-%s" % (set_type, i)
+                if type(line[0][0]) is not str:
+                    text_a = line[0][0][0]
+                    text_b = line[0][1][0]
+                else:
+                    text_a = line[0][0]
+                    text_b = line[0][1]
+                label = line[1]
             examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples
 
