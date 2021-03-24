@@ -873,8 +873,8 @@ if __name__ == '__main__':
     create_dir(path)
     name = 'seed_{}_lr_{}_bs_{}_epochs_{}'.format(args.seed, args.learning_rate,
                                                     args.per_gpu_train_batch_size,
-                                                    args.num_train_epochs)
-    if args.use_adapter: name += '_adapters'
+                                                    int(args.num_train_epochs))
+    # if args.use_adapter: name += '_adapters'
     if args.indicator is not None: name += '_{}'.format(args.indicator)
     print(name)
 
@@ -972,15 +972,22 @@ if __name__ == '__main__':
         vanilla_results_val, vanilla_val_logits = my_evaluate(eval_dataset, args, model, mc_samples=None)
         vanilla_results_test, vanilla_test_logits = my_evaluate(test_dataset, args, model, mc_samples=None)
         vanilla_results = {"val_results": vanilla_results_val, "test_results": vanilla_results_test}
-        with open(os.path.join(dirname, 'vanilla_results.json'), 'w') as f:
+        filename = 'vanilla_results'
+        if args.use_adapter: filename += '_adapter'
+        if args.use_bayes_adapter: filename += '_bayes_adapter'
+        with open(os.path.join(dirname, '{}.json'.format(filename)), 'w') as f:
             json.dump(vanilla_results, f)
         # Monte Carlo dropout
-        # for m in [3,5,10,20]:
-        #     mc_results_val, _ = my_evaluate(eval_dataset, args, model, mc_samples=m)
-        #     mc_results_test, _ = my_evaluate(test_dataset, args, model, mc_samples=m)
-        #     mc_results = {"val_results": mc_results_val, "test_results": mc_results_test}
-        #     with open(os.path.join(dirname, 'mc{}_results.json'.format(m)), 'w') as f:
-        #         json.dump(mc_results, f)
+        for m in [3,5,10,20]:
+            mc_results_val, _ = my_evaluate(eval_dataset, args, model, mc_samples=m)
+            mc_results_test, _ = my_evaluate(test_dataset, args, model, mc_samples=m)
+            mc_results = {"val_results": mc_results_val, "test_results": mc_results_test}
+            filename = 'mc{}_results'.format(m)
+            if args.use_adapter: filename += '_adapter'
+            if args.use_bayes_adapter: filename += '_bayes_adapter'
+            with open(os.path.join(dirname, '{}.json'.format(filename)), 'w') as f:
+            # with open(os.path.join(dirname, 'mc{}_results.json'.format(m)), 'w') as f:
+                json.dump(mc_results, f)
         # Temperature Scaling
         temp_model = tune_temperature(eval_dataset, args, model, return_model_temp=True)
         temp_scores_val = temp_model.temp_scale_metrics(args.task_name, vanilla_val_logits,
@@ -988,5 +995,9 @@ if __name__ == '__main__':
         temp_scores_test = temp_model.temp_scale_metrics(args.task_name, vanilla_test_logits,
                                                         vanilla_results_test['gold_labels'])
         temp_scores = {"val_results": temp_scores_val, "test_results": temp_scores_test}
-        with open(os.path.join(dirname, 'temp_scale_results.json'), 'w') as f:
+        filename = 'temp_scale_results'
+        if args.use_adapter: filename += '_adapter'
+        if args.use_bayes_adapter: filename += '_bayes_adapter'
+        with open(os.path.join(dirname, '{}.json'.format(filename)), 'w') as f:
+        # with open(os.path.join(dirname, 'temp_scale_results.json'), 'w') as f:
             json.dump(temp_scores, f)

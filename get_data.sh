@@ -16,7 +16,7 @@ if [ -d "$PWD/data/CoLA" ]
 then
   echo "Glue data already exist."
 else
-  python src/glue/download_glue_data.py
+  python src/glue/download_glue.py
 fi
 echo "---"
 
