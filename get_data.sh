@@ -12,7 +12,7 @@ else
 fi
 
 echo "Downloading Glue Datasets..."
-if [ -d "$PWD/data/CoLA" ]
+if [ -d "$PWD/data/MRPC" ]
 then
   echo "Glue data already exist."
 else
