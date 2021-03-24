@@ -225,13 +225,13 @@ class BayesAdapter(nn.Module):
         
         activated = self.activation(down_projected)
 
-        mu = self.up_project_mu(hidden_states)
-        sigma = self.up_project_sigma(hidden_states)
+        mu = self.up_project_mu(activated)
+        sigma = self.up_project_sigma(activated)
 
         distribution = torch.distributions.Normal(loc=mu, scale=sigma)
-
         up_projected = distribution.rsample()
 
+        ## up_projected = mu + sigma * torch.randn_like(sigma).cuda()
         ### problem LETS DISCUSS
         return hidden_states + up_projected
 
@@ -240,9 +240,9 @@ class BayesAdapter(nn.Module):
         # cf https://github.com/pytorch/pytorch/pull/5617
         self.down_project.weight.data.normal_(mean=0.0, std=1.)
         self.down_project.bias.data.zero_()
-        self.up_project_mu.weight.data.normal_(mean=0.0, std=config.adapter_initializer_range)
+        self.up_project_mu.weight.data.normal_(mean=0.0, std=1.)
         self.up_project_mu.bias.data.zero_()
-        self.up_project_sigma.weight.data.normal_(mean=0.0, std=config.adapter_initializer_range)
+        self.up_project_sigma.weight.data.normal_(mean=0.0, std=1.)
         self.up_project_sigma.bias.data.zero_()
 
 class BertEmbeddings(nn.Module):
@@ -386,6 +386,8 @@ class BertSelfOutput(nn.Module):
         ##########################################################################################
         if self.adapter is not None:
             hidden_states = self.adapter(hidden_states)
+        if self.bayes_adapter is not None:
+            hidden_states = self.bayes_adapter(hidden_states)
         ##########################################################################################
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
