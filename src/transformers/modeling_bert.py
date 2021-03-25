@@ -1391,7 +1391,18 @@ class BertForSequenceClassification(BertPreTrainedModel):
 
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.classifier = nn.Linear(config.hidden_size, config.num_labels)
+        self.bayes_output = config.bayes_output
+        if self.bayes_output:
+
+            self.classifier_mu = nn.Linear(config.hidden_size, config.num_labels, bias=False)
+            self.classifier_sigma = nn.Linear(config.hidden_size, config.num_labels, bias=False)
+
+            self.classifier_mu.weight.data.normal_(mean=0.0, std=1)
+            # self.classifier_mu.bias.data.zero_()
+            self.classifier_sigma.weight.data.normal_(mean=0.0, std=1)
+            # self.classifier_sigma.bias.data.zero_()
+        else:
+            self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
         self.init_weights()
 
@@ -1439,7 +1450,14 @@ class BertForSequenceClassification(BertPreTrainedModel):
         pooled_output = outputs[1]
 
         pooled_output = self.dropout(pooled_output)
-        logits = self.classifier(pooled_output)
+        if self.bayes_output:
+            mu = self.classifier_mu(pooled_output)
+            sigma = self.classifier_sigma(pooled_output)
+
+            distribution = torch.distributions.Normal(loc=mu, scale=sigma)
+            logits = distribution.rsample()
+        else:
+            logits = self.classifier(pooled_output)
 
         loss = None
         if labels is not None:

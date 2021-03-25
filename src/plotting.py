@@ -22,13 +22,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 # from utilities.general import create_dir
 
 def read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_train_epochs,
-                      indicators, methods, task_name, identity_init=False):
+                      indicators, methods, task_name, identity_init=False, bayes_output=False):
     df = pd.DataFrame()
     for seed in seeds:
         exp_path = os.path.join(path, 'seed_{}_lr_{}_bs_{}_epochs_{}'.format(seed, learning_rate,
                                                                             per_gpu_train_batch_size,
                                                                             int(num_train_epochs)))
         if identity_init: exp_path += '_identity_init'
+        if identity_init: exp_path += '_bayes_output'
         if not os.path.exists(exp_path): pass
         df_ = pd.DataFrame()
         for ind in indicators:
@@ -45,6 +46,7 @@ def read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_
                         if ind=='adapter': _ind = 'Adapters'
                         if ind=='bayes_adapter': _ind = 'BayesAdapters'
                         if ind=='bayes_adapter' and identity_init: _ind = 'BayesAdapters+Identity'
+                        if bayes_output: _ind = 'BayesOutput'
 
                         val_results = results['val_results']
                         test_results = results['test_results']
@@ -73,7 +75,7 @@ def read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_
 
 def uncertainty_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu_train_batch_size=16,
                      num_train_epochs='3', indicators=None, methods=["vanilla", "mc3", "mc5", "mc10", "mc20", "temp_scale"],
-                     identity_init=False):
+                     identity_init=False, bayes_output=False):
 
     path = os.path.join(RES_DIR, '{}_{}_100%'.format(task_name, model_type))
     if not os.path.exists(path): return
@@ -89,6 +91,10 @@ def uncertainty_plot(task_name, seeds, model_type='bert', learning_rate='2e-05',
     if identity_init:
         df_ = read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_train_epochs,
                             indicators, methods, task_name, identity_init=True)
+        df = df.append(df_, ignore_index=True)
+    if bayes_output:
+        df_ = read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_train_epochs,
+                            indicators, methods, task_name, bayes_output=True)
         df = df.append(df_, ignore_index=True)
     # for seed in seeds:
     #     exp_path = os.path.join(path, 'seed_{}_lr_{}_bs_{}_epochs_{}'.format(seed, learning_rate,
@@ -192,15 +198,16 @@ if __name__ == '__main__':
 
     # uncertainty plot
     # datasets = ['sst-2', 'mrpc', 'qnli', "cola", "mnli", "mnli-mm", "sts-b", "qqp", "rte", "wnli"]
-    datasets = ['rte', 'mrpc', 'sst-2', 'qnli']
+    datasets = ['rte']
 
     epochs='5'
     for dataset in datasets:
         # pass
         uncertainty_plot(task_name=dataset,
-                         seeds=[2,19,729,982, 75, 281, 325, 195, 83, 4],
+                         seeds=[1,2,19,729,982, 75, 281, 325, 195, 83, 4],
                          learning_rate='2e-05',
                          per_gpu_train_batch_size=32,
                          num_train_epochs='5',
                          indicators=[None, 'adapter', 'bayes_adapter'],
-                         identity_init=True)
+                         identity_init=False,
+                         bayes_output=True)

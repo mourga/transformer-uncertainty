@@ -750,6 +750,8 @@ if __name__ == '__main__':
     parser.add_argument("--test_all_uncertainty", required=False, type=bool, default=True,
                         help=" if True evaluate [vanilla, mc_3, mc_5, mc_10, mc_20, temp_scaling] "
                              "uncertainty methods for the model")
+    parser.add_argument("--bayes_output", required=False, type=bool, default=True,
+                        help=" if True add Bayesian classification layer (UA)")
     ##########################################################################
     # Server args
     ##########################################################################
@@ -799,6 +801,7 @@ if __name__ == '__main__':
     if args.use_bayes_adapter: args.output_dir += '-bayes-adapter'
     if args.indicator is not None: args.output_dir += '-{}'.format(args.indicator)
     if args.patience is not None: args.output_dir += '-early{}'.format(int(args.num_train_epochs))
+    if args.bayes_output: args.output_dir += '-bayes-output'
     args.current_output_dir = args.output_dir
     if (
             os.path.exists(args.output_dir)
@@ -855,6 +858,8 @@ if __name__ == '__main__':
         use_adapter=args.use_adapter,
         use_bayes_adapter=args.use_bayes_adapter,
         adapter_initializer_range=0.0002 if args.indicator=='identity_init' else 1,
+        bayes_output=args.bayes_output
+
     )
     tokenizer = tokenizer_class.from_pretrained(
         args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
@@ -980,6 +985,7 @@ if __name__ == '__main__':
         filename = 'vanilla_results'
         if args.use_adapter: filename += '_adapter'
         if args.use_bayes_adapter: filename += '_bayes_adapter'
+        if args.bayes_output: filename += '_bayes_output'
         with open(os.path.join(dirname, '{}.json'.format(filename)), 'w') as f:
             json.dump(vanilla_results, f)
         # Monte Carlo dropout
@@ -990,6 +996,7 @@ if __name__ == '__main__':
             filename = 'mc{}_results'.format(m)
             if args.use_adapter: filename += '_adapter'
             if args.use_bayes_adapter: filename += '_bayes_adapter'
+            if args.bayes_output: filename += '_bayes_output'
             with open(os.path.join(dirname, '{}.json'.format(filename)), 'w') as f:
             # with open(os.path.join(dirname, 'mc{}_results.json'.format(m)), 'w') as f:
                 json.dump(mc_results, f)
@@ -1003,6 +1010,7 @@ if __name__ == '__main__':
         filename = 'temp_scale_results'
         if args.use_adapter: filename += '_adapter'
         if args.use_bayes_adapter: filename += '_bayes_adapter'
+        if args.bayes_output: filename += '_bayes_output'
         with open(os.path.join(dirname, '{}.json'.format(filename)), 'w') as f:
         # with open(os.path.join(dirname, 'temp_scale_results.json'), 'w') as f:
             json.dump(temp_scores, f)
