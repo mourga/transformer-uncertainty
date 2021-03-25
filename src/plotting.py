@@ -133,7 +133,7 @@ if __name__ == '__main__':
 
     # uncertainty plot
     # datasets = ['sst-2', 'mrpc', 'qnli', "cola", "mnli", "mnli-mm", "sts-b", "qqp", "rte", "wnli"]
-    datasets = ['rte', 'mrpc']
+    datasets = ['rte', 'mrpc', 'sst-2', 'qnli']
 
     epochs='5'
     for dataset in datasets:

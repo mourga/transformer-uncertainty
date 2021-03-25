@@ -238,11 +238,11 @@ class BayesAdapter(nn.Module):
     def init_weights(self, config):
         # Slightly different from the TF version which uses truncated_normal for initialization
         # cf https://github.com/pytorch/pytorch/pull/5617
-        self.down_project.weight.data.normal_(mean=0.0, std=1.)
+        self.down_project.weight.data.normal_(mean=0.0, std=config.adapter_initializer_range)
         self.down_project.bias.data.zero_()
-        self.up_project_mu.weight.data.normal_(mean=0.0, std=1.)
+        self.up_project_mu.weight.data.normal_(mean=0.0, std=config.adapter_initializer_range)
         self.up_project_mu.bias.data.zero_()
-        self.up_project_sigma.weight.data.normal_(mean=0.0, std=1.)
+        self.up_project_sigma.weight.data.normal_(mean=0.0, std=config.adapter_initializer_range)
         self.up_project_sigma.bias.data.zero_()
 
 class BertEmbeddings(nn.Module):
