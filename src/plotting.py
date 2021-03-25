@@ -36,7 +36,7 @@ def uncertainty_plot(task_name, seeds, model_type='bert', learning_rate='2e-05',
     for seed in seeds:
         exp_path = os.path.join(path, 'seed_{}_lr_{}_bs_{}_epochs_{}'.format(seed, learning_rate,
                                                                             per_gpu_train_batch_size,
-                                                                            float(num_train_epochs)))
+                                                                            int(num_train_epochs)))
         if not os.path.exists(exp_path): pass
         df_ = pd.DataFrame()
         for ind in indicators:
@@ -75,8 +75,8 @@ def uncertainty_plot(task_name, seeds, model_type='bert', learning_rate='2e-05',
                     df_['seed'] = seed
                     # df_['num_samples'] = num_samples
 
-                    # df = df.append(df_, ignore_index=True)
-    df = df_
+        df = df.append(df_, ignore_index=True)
+    # df = df_
     if not df.empty:
         # df['indicator'].loc[(df['indicator'] == None)] = 'Base'
 
@@ -109,7 +109,7 @@ def uncertainty_plot(task_name, seeds, model_type='bert', learning_rate='2e-05',
             ax3.get_legend().remove()
             ax4.get_legend().remove()
 
-            plt.legend(bbox_to_anchor=(1.05, 1), loc=7, borderaxespad=0.)
+            plt.legend(bbox_to_anchor=(1.4, 1), borderaxespad=0.)
 
             plt.xlabel('Models', fontsize=14)
             # plt.legend(loc='best', prop={'size': 9})
@@ -119,7 +119,7 @@ def uncertainty_plot(task_name, seeds, model_type='bert', learning_rate='2e-05',
 
             # unc_dir = os.path.join(ex, 'uncertainty_plots')
             # create_dir(unc_dir)
-            plt.savefig(os.path.join(exp_path, filename + '.png'),
+            plt.savefig(os.path.join(path, filename + '.png'),
                         dpi=300,
                         transparent=False, bbox_inches="tight", pad_inches=0.2)
 
@@ -133,14 +133,14 @@ if __name__ == '__main__':
 
     # uncertainty plot
     # datasets = ['sst-2', 'mrpc', 'qnli', "cola", "mnli", "mnli-mm", "sts-b", "qqp", "rte", "wnli"]
-    datasets = ['rte']
+    datasets = ['rte', 'mrpc']
 
-    epochs='5.0'
+    epochs='5'
     for dataset in datasets:
         # pass
         uncertainty_plot(task_name=dataset,
-                         seeds=[1],
+                         seeds=[2,19,729],
                          learning_rate='2e-05',
-                         per_gpu_train_batch_size=4,
-                         num_train_epochs='5.0',
+                         per_gpu_train_batch_size=32,
+                         num_train_epochs='5',
                          indicators=[None, 'adapter', 'bayes_adapter'])

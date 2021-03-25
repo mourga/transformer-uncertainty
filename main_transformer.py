@@ -879,6 +879,10 @@ if __name__ == '__main__':
     print(name)
 
     dirname = os.path.join(path, name)
+
+    if os.path.isdir(dirname) and os.listdir(dirname):
+        print('Experiment done!')
+        exit()
     create_dir(dirname)
 
     #########################################
