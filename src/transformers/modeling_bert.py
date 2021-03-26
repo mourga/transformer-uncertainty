@@ -833,13 +833,14 @@ class BertModel(BertPreTrainedModel):
 
         ##########################################################################################
         if hasattr(config, "use_adapter"):
-            if config.use_adapter or config.use_bayes_adapter:
-                for param in self.parameters():
-                    param.requires_grad = False
-                for name, sub_module in self.named_modules():
-                    if isinstance(sub_module, (Adapter, BayesAdapter, BertLayerNorm)):
-                        for param_name, param in sub_module.named_parameters():
-                            param.requires_grad = True
+            if not config.unfreeze_adapters:
+                if config.use_adapter or config.use_bayes_adapter:
+                    for param in self.parameters():
+                        param.requires_grad = False
+                    for name, sub_module in self.named_modules():
+                        if isinstance(sub_module, (Adapter, BayesAdapter, BertLayerNorm)):
+                            for param_name, param in sub_module.named_parameters():
+                                param.requires_grad = True
         ##########################################################################################
 
     def get_input_embeddings(self):

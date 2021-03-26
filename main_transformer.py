@@ -731,6 +731,9 @@ if __name__ == '__main__':
     parser.add_argument("--use_bayes_adapter", required=False, type=bool,
                         default=False,
                         help="if True finetune model with added Bayes adapter layers")
+    parser.add_argument("--unfreeze_adapters", required=False, type=bool,
+                        default=False,
+                        help="if True add adapters and fine-tune all model")
     ##########################################################################
     # Data args
     ##########################################################################
@@ -750,7 +753,7 @@ if __name__ == '__main__':
     parser.add_argument("--test_all_uncertainty", required=False, type=bool, default=True,
                         help=" if True evaluate [vanilla, mc_3, mc_5, mc_10, mc_20, temp_scaling] "
                              "uncertainty methods for the model")
-    parser.add_argument("--bayes_output", required=False, type=bool, default=True,
+    parser.add_argument("--bayes_output", required=False, type=bool, default=False,
                         help=" if True add Bayesian classification layer (UA)")
     ##########################################################################
     # Server args
@@ -802,6 +805,7 @@ if __name__ == '__main__':
     if args.indicator is not None: args.output_dir += '-{}'.format(args.indicator)
     if args.patience is not None: args.output_dir += '-early{}'.format(int(args.num_train_epochs))
     if args.bayes_output: args.output_dir += '-bayes-output'
+    if (args.use_adapter or args.bayes_output) and args.unfreeze_adapters: args.output_dir += '-unfreeze'
     args.current_output_dir = args.output_dir
     if (
             os.path.exists(args.output_dir)
@@ -858,7 +862,8 @@ if __name__ == '__main__':
         use_adapter=args.use_adapter,
         use_bayes_adapter=args.use_bayes_adapter,
         adapter_initializer_range=0.0002 if args.indicator=='identity_init' else 1,
-        bayes_output=args.bayes_output
+        bayes_output=args.bayes_output,
+        unfreeze_adapters=args.unfreeze_adapters
 
     )
     tokenizer = tokenizer_class.from_pretrained(
@@ -986,6 +991,7 @@ if __name__ == '__main__':
         if args.use_adapter: filename += '_adapter'
         if args.use_bayes_adapter: filename += '_bayes_adapter'
         if args.bayes_output: filename += '_bayes_output'
+        if (args.use_adapter or args.bayes_output) and args.unfreeze_adapters: filename += '_unfreeze'
         with open(os.path.join(dirname, '{}.json'.format(filename)), 'w') as f:
             json.dump(vanilla_results, f)
         # Monte Carlo dropout
@@ -997,6 +1003,7 @@ if __name__ == '__main__':
             if args.use_adapter: filename += '_adapter'
             if args.use_bayes_adapter: filename += '_bayes_adapter'
             if args.bayes_output: filename += '_bayes_output'
+            if (args.use_adapter or args.bayes_output) and args.unfreeze_adapters: filename += '_unfreeze'
             with open(os.path.join(dirname, '{}.json'.format(filename)), 'w') as f:
                 json.dump(mc_results, f)
         # Temperature Scaling
@@ -1010,5 +1017,6 @@ if __name__ == '__main__':
         if args.use_adapter: filename += '_adapter'
         if args.use_bayes_adapter: filename += '_bayes_adapter'
         if args.bayes_output: filename += '_bayes_output'
+        if (args.use_adapter or args.bayes_output) and args.unfreeze_adapters: filename += '_unfreeze'
         with open(os.path.join(dirname, '{}.json'.format(filename)), 'w') as f:
             json.dump(temp_scores, f)

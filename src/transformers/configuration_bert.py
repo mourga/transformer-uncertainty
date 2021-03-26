@@ -130,6 +130,7 @@ class BertConfig(PretrainedConfig):
         adapter_act="gelu",
         adapter_size=64,
         adapter_initializer_range=0.0002,
+        unfreeze_adapters=False,
         bayes_output=False,
         **kwargs
     ):
@@ -155,4 +156,5 @@ class BertConfig(PretrainedConfig):
         self.adapter_act = adapter_act
         self.adapter_size = adapter_size
         self.adapter_initializer_range = adapter_initializer_range
+        self.unfreeze_adapters = unfreeze_adapters
         self.bayes_output = bayes_output
