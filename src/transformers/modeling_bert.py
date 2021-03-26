@@ -227,6 +227,7 @@ class BayesAdapter(nn.Module):
 
         mu = self.up_project_mu(activated)
         sigma = self.up_project_sigma(activated)
+        sigma = torch.nn.Softplus(sigma)
 
         distribution = torch.distributions.Normal(loc=mu, scale=sigma)
         up_projected = distribution.rsample()
@@ -1395,13 +1396,13 @@ class BertForSequenceClassification(BertPreTrainedModel):
         self.bayes_output = config.bayes_output
         if self.bayes_output:
 
-            self.classifier_mu = nn.Linear(config.hidden_size, config.num_labels, bias=False)
-            self.classifier_sigma = nn.Linear(config.hidden_size, config.num_labels, bias=False)
+            self.classifier_mu = nn.Linear(config.hidden_size, config.num_labels)
+            self.classifier_sigma = nn.Linear(config.hidden_size, config.num_labels)
 
             self.classifier_mu.weight.data.normal_(mean=0.0, std=1)
-            # self.classifier_mu.bias.data.zero_()
+            self.classifier_mu.bias.data.zero_()
             self.classifier_sigma.weight.data.normal_(mean=0.0, std=1)
-            # self.classifier_sigma.bias.data.zero_()
+            self.classifier_sigma.bias.data.zero_()
         else:
             self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
@@ -1454,6 +1455,7 @@ class BertForSequenceClassification(BertPreTrainedModel):
         if self.bayes_output:
             mu = self.classifier_mu(pooled_output)
             sigma = self.classifier_sigma(pooled_output)
+            sigma = torch.nn.Softplus(sigma)
 
             distribution = torch.distributions.Normal(loc=mu, scale=sigma)
             logits = distribution.rsample()
