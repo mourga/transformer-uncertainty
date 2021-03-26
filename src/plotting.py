@@ -3,14 +3,11 @@ import os
 import sys
 
 import matplotlib
-from matplotlib.backends.backend_pdf import PdfPages
 
-from src.general import create_dir
 from sys_config import RES_DIR
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import matplotlib.style as style
 import seaborn as sns
 import pandas as pd
 import numpy as np
@@ -18,18 +15,16 @@ import numpy as np
 sys.path.append("../../")
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-# from sys_config import FIG_DIR
-# from utilities.general import create_dir
 
 def read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_train_epochs,
-                      indicators, methods, task_name, identity_init=False, bayes_output=False):
+                      indicators, methods, task_name, identity_init=False, ece=False):
     df = pd.DataFrame()
     for seed in seeds:
         exp_path = os.path.join(path, 'seed_{}_lr_{}_bs_{}_epochs_{}'.format(seed, learning_rate,
-                                                                            per_gpu_train_batch_size,
-                                                                            int(num_train_epochs)))
+                                                                             per_gpu_train_batch_size,
+                                                                             int(num_train_epochs)))
         if identity_init: exp_path += '_identity_init'
-        if identity_init: exp_path += '_bayes_output'
+
         if not os.path.exists(exp_path): pass
         df_ = pd.DataFrame()
         for ind in indicators:
@@ -42,41 +37,61 @@ def read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_
                 else:
                     with open(res_path) as json_file:
                         results = json.load(json_file)
-                        if ind is None: _ind = 'Base'
-                        if ind=='adapter': _ind = 'Adapters'
-                        if ind=='bayes_adapter': _ind = 'BayesAdapters'
-                        if ind=='bayes_adapter' and identity_init: _ind = 'BayesAdapters+Identity'
-                        if bayes_output: _ind = 'BayesOutput'
+                        if ece:
+                            val_results_bins = results['val_results']['ece']['bins']
+                            test_results_bin = results['test_results']['ece']['bins']
+                            df0 = pd.DataFrame(
+                                {'val_accs': [a['acc'] if a['acc'] != 0.0 else None for bin, a in
+                                              val_results_bins.items()],
+                                 'val_confs': [a['conf'] if a['acc'] != 0.0 else None for bin, a in
+                                               val_results_bins.items()],
+                                 'test_accs': [a['acc'] if a['acc'] != 0.0 else None for bin, a in
+                                               test_results_bin.items()],
+                                 'test_confs': [a['conf'] if a['acc'] != 0.0 else None for bin, a in
+                                                test_results_bin.items()],
+                                 'bins': list(np.arange(0.5, 10.5, 1) * 0.1)})
+                            df0['method'] = method
+                            if ind is None: _ind = 'Base'
+                            if ind == 'adapter': _ind = 'Adapters'
+                            if ind == 'bayes_adapter': _ind = 'BayesAdapters'
+                            if ind == 'bayes_adapter' and identity_init: _ind = 'BayesAdapters+Identity'
+                            if ind == 'bayes_output': _ind = 'BayesOutput'
+                            df0['indicator'] = _ind
+                        else:
+                            if ind is None: _ind = 'Base'
+                            if ind == 'adapter': _ind = 'Adapters'
+                            if ind == 'bayes_adapter': _ind = 'BayesAdapters'
+                            if ind == 'bayes_adapter' and identity_init: _ind = 'BayesAdapters+Identity'
+                            if ind == 'bayes_output': _ind = 'BayesOutput'
 
-                        val_results = results['val_results']
-                        test_results = results['test_results']
-                        df0 = pd.DataFrame(
-                            {'val_acc': val_results['acc'],
-                             'val_ece': val_results['ece']['ece'],
-                             'val_nll': val_results['nll']['mean'],
-                             'val_entropy': val_results['entropy']['mean'],
-                             'val_brier': val_results['brier']['mean'],
-                             'test_acc': test_results['acc'],
-                             'test_ece': test_results['ece']['ece'],
-                             'test_nll': test_results['nll']['mean'],
-                             'test_entropy': test_results['entropy']['mean'],
-                             'test_brier': test_results['brier']['mean'],
-                             'method': method,
-                             'indicator':_ind}, index=[0])
+                            val_results = results['val_results']
+                            test_results = results['test_results']
+                            df0 = pd.DataFrame(
+                                {'val_acc': val_results['acc'],
+                                 'val_ece': val_results['ece']['ece'],
+                                 'val_nll': val_results['nll']['mean'],
+                                 'val_entropy': val_results['entropy']['mean'],
+                                 'val_brier': val_results['brier']['mean'],
+                                 'test_acc': test_results['acc'],
+                                 'test_ece': test_results['ece']['ece'],
+                                 'test_nll': test_results['nll']['mean'],
+                                 'test_entropy': test_results['entropy']['mean'],
+                                 'test_brier': test_results['brier']['mean'],
+                                 'method': method,
+                                 'indicator': _ind}, index=[0])
                         df_ = df_.append(df0, ignore_index=True)
 
-                    # df_['val_acc'] = val_acc
                     df_['dataset'] = task_name
                     df_['seed'] = seed
-                    # df_['num_samples'] = num_samples
 
         df = df.append(df_, ignore_index=True)
     return df
 
-def uncertainty_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu_train_batch_size=16,
-                     num_train_epochs='3', indicators=None, methods=["vanilla", "mc3", "mc5", "mc10", "mc20", "temp_scale"],
-                     identity_init=False, bayes_output=False):
 
+def uncertainty_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu_train_batch_size=16,
+                     num_train_epochs='3', indicators=None,
+                     methods=["vanilla", "mc3", "mc5", "mc10", "mc20", "temp_scale"],
+                     identity_init=False):
     path = os.path.join(RES_DIR, '{}_{}_100%'.format(task_name, model_type))
     if not os.path.exists(path): return
 
@@ -90,70 +105,17 @@ def uncertainty_plot(task_name, seeds, model_type='bert', learning_rate='2e-05',
     df = df.append(df_, ignore_index=True)
     if identity_init:
         df_ = read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_train_epochs,
-                            indicators, methods, task_name, identity_init=True)
+                                indicators, methods, task_name, identity_init=True)
         df = df.append(df_, ignore_index=True)
-    if bayes_output:
-        df_ = read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_train_epochs,
-                            indicators, methods, task_name, bayes_output=True)
-        df = df.append(df_, ignore_index=True)
-    # for seed in seeds:
-    #     exp_path = os.path.join(path, 'seed_{}_lr_{}_bs_{}_epochs_{}'.format(seed, learning_rate,
-    #                                                                         per_gpu_train_batch_size,
-    #                                                                         int(num_train_epochs)))
-    #     if identity_init: exp_path += '_identity_init'
-    #     if not os.path.exists(exp_path): pass
-    #     df_ = pd.DataFrame()
-    #     for ind in indicators:
-    #         for method in methods:
-    #             res_filename = '{}_results'.format(method)
-    #             if ind is not None: res_filename += '_{}'.format(ind)
-    #             res_path = os.path.join(exp_path, "{}.json".format(res_filename))
-    #             if not os.path.exists(res_path):
-    #                 pass
-    #             else:
-    #                 with open(res_path) as json_file:
-    #                     results = json.load(json_file)
-    #                     if ind is None: _ind = 'Base'
-    #                     if ind=='adapter': _ind = 'Base+Adapters'
-    #                     if ind=='bayes_adapter': _ind = 'Base+BayesAdapters'
-    #
-    #                     val_results = results['val_results']
-    #                     test_results = results['test_results']
-    #                     df0 = pd.DataFrame(
-    #                         {'val_acc': val_results['acc'],
-    #                          'val_ece': val_results['ece']['ece'],
-    #                          'val_nll': val_results['nll']['mean'],
-    #                          'val_entropy': val_results['entropy']['mean'],
-    #                          'val_brier': val_results['brier']['mean'],
-    #                          'test_acc': test_results['acc'],
-    #                          'test_ece': test_results['ece']['ece'],
-    #                          'test_nll': test_results['nll']['mean'],
-    #                          'test_entropy': test_results['entropy']['mean'],
-    #                          'test_brier': test_results['brier']['mean'],
-    #                          'method': method,
-    #                          'indicator':_ind}, index=[0])
-    #                     df_ = df_.append(df0, ignore_index=True)
-    #
-    #                 # df_['val_acc'] = val_acc
-    #                 df_['dataset'] = task_name
-    #                 df_['seed'] = seed
-    #                 # df_['num_samples'] = num_samples
-    #
-    #     df = df.append(df_, ignore_index=True)
-    # df = df_
+
     if not df.empty:
-        # df['indicator'].loc[(df['indicator'] == None)] = 'Base'
 
         for d in ['test', 'val']:
             fig, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5, sharex=True, figsize=(6.0, 9.0), constrained_layout=True)
-            # sns.boxplot(x="num_samples", y="ece", hue="method", data=df, ax=ax1, palette=sns.color_palette("hls", 5))
             sns.boxplot(x='indicator', y="{}_acc".format(d), hue="method", data=df, ax=ax1, palette="deep")
             sns.boxplot(x='indicator', y="{}_ece".format(d), hue="method", data=df, ax=ax2, palette="deep")
-            # sns.boxplot(x="num_samples", y="nll", hue="method", data=df, ax=ax2, palette=sns.color_palette("hls", 5))
             sns.boxplot(x='indicator', y="{}_nll".format(d), hue="method", data=df, ax=ax3, palette="deep")
-            # sns.boxplot(x="num_samples", y="brier", hue="method", data=df, ax=ax3, palette=sns.color_palette("hls", 5))
             sns.boxplot(x='indicator', y="{}_brier".format(d), hue="method", data=df, ax=ax4, palette="deep")
-            # sns.boxplot(x="num_samples", y="entropy", hue="method", data=df, ax=ax4, palette=sns.color_palette("hls", 5))
             sns.boxplot(x='indicator', y="{}_entropy".format(d), hue="method", data=df, ax=ax5, palette="deep")
 
             if task_name == "ag_news":
@@ -182,32 +144,114 @@ def uncertainty_plot(task_name, seeds, model_type='bert', learning_rate='2e-05',
             filename = "uncertainty_plot_{}".format(d)
             if identity_init: filename += '_identity'
 
-            # unc_dir = os.path.join(ex, 'uncertainty_plots')
-            # create_dir(unc_dir)
             plt.savefig(os.path.join(path, filename + '.png'),
                         dpi=300,
                         transparent=False, bbox_inches="tight", pad_inches=0.2)
 
-            # pdf
-            # pp = PdfPages(os.path.join(exp_path, filename + '.pdf'))
-            # pp.savefig(fig)
-            # pp.close()
     return
+
+
+def ece_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu_train_batch_size=16,
+             num_train_epochs='3', indicators=None, methods=["vanilla", "mc3", "mc5", "mc10", "mc20", "temp_scale"],
+             identity_init=False):
+    """
+    Reliability diagram
+    :return:
+    """
+    path = os.path.join(RES_DIR, '{}_{}_100%'.format(task_name, model_type))
+    if not os.path.exists(path): return
+
+    df = pd.DataFrame()
+
+    if type(seeds) is not list: seeds = [seeds]
+    if type(indicators) is not list: indicators = [indicators]
+
+    df_ = read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_train_epochs,
+                            indicators, methods, task_name, ece=True)
+    df = df.append(df_, ignore_index=True)
+    d = "test"
+
+    sns.set(style="ticks")
+    fig = plt.figure(figsize=(4.0, 3.5))
+    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+
+    ax.set_xlim([0, 1])
+    ax.set_xlim([0, 1])
+
+    plot_method = 'vanilla'
+    plotdf = df[df["method"] == plot_method]
+
+    base = plotdf[plotdf["indicator"] == 'Base']
+    base_adapt = plotdf[plotdf["indicator"] == 'Adapters']
+    base_bayes_adapt = plotdf[plotdf["indicator"] == 'BayesAdapters']
+    bayes_output = plotdf[plotdf["indicator"] == 'BayesOutput']
+
+    # code no error bars
+    # plt.plot(base_adapt['test_confs'], base_adapt['test_accs'], ls='-', color='dodgerblue', label='Adapters', marker='o', markersize=4)
+    # plt.plot(base_bayes_adapt['test_confs'], base_bayes_adapt['test_accs'], ls='-', color='orangered', label='BayesAdapters', marker='o', markersize=4)
+    # plt.plot(base['test_confs'], base['test_accs'], ls='-', color='lime', label='Base', marker='o', markersize=4)
+    # plt.plot(bayes_output['test_confs'], bayes_output['test_accs'], ls='-', color='magenta', label='BayesOutput', marker='o', markersize=4)
+
+    # find mean accuracy per bin
+    base_mean = list(base.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
+    base_std = list(base.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
+    base_adapt_mean = list(base_adapt.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
+    base_adapt_std = list(base_adapt.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
+    base_bayes_adapt_mean = list(base_bayes_adapt.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
+    base_bayes_adapt_std = list(base_bayes_adapt.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
+    bayes_output_mean = list(bayes_output.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
+    bayes_output_std = list(bayes_output.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
+
+    bins = list(base.groupby('bins', as_index=False)['test_accs'].mean()['bins'])
+
+    plt.errorbar(bins, base_adapt_mean, base_adapt_std, ls='-', color='dodgerblue', label='Adapters', marker='o',
+                 markersize=4)
+    plt.errorbar(bins, base_bayes_adapt_mean, base_bayes_adapt_std, ls='-', color='orangered', label='BayesAdapters',
+                 marker='o', markersize=4)
+    plt.errorbar(bins, base_mean, base_std, ls='-', color='lime', label='Base', marker='o', markersize=4)
+    if not bayes_output.empty: plt.errorbar(bins, bayes_output_mean, bayes_output_std, ls='-', color='magenta',
+                                            label='BayesOutput', marker='o', markersize=4)
+
+    plt.plot(np.arange(0, 1.2, 0.2), np.arange(0, 1.2, 0.2), color='black', ls='--')
+    plt.legend(loc='upper left', frameon=False)
+
+    plt.xlabel('Confidence', fontsize=14)
+    plt.ylabel('Accuracy', fontsize=14)
+
+    plt.title(task_name.upper())
+    plt.style.use("seaborn-colorblind")
+    filename = "reliability_diagram_{}_{}".format(d, plot_method)
+    if identity_init: filename += '_identity'
+
+    plt.savefig(os.path.join(path, filename + '.png'),
+                dpi=300,
+                transparent=False, bbox_inches="tight", pad_inches=0.2)
+
+    return
+
 
 if __name__ == '__main__':
 
-    # uncertainty plot
     # datasets = ['sst-2', 'mrpc', 'qnli', "cola", "mnli", "mnli-mm", "sts-b", "qqp", "rte", "wnli"]
-    datasets = ['rte']
+    datasets = ['rte', 'mrpc', 'qnli', 'sst-2']
 
-    epochs='5'
+
+    epochs = '5'
     for dataset in datasets:
-        # pass
+        print(dataset)
+        # acc + uncertainty plot
         uncertainty_plot(task_name=dataset,
-                         seeds=[1,2,19,729,982, 75, 281, 325, 195, 83, 4],
+                         seeds=[2, 19, 729, 982, 75, 281, 325, 195, 83, 4],
                          learning_rate='2e-05',
                          per_gpu_train_batch_size=32,
                          num_train_epochs='5',
-                         indicators=[None, 'adapter', 'bayes_adapter'],
-                         identity_init=False,
-                         bayes_output=True)
+                         indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
+                         identity_init=False)
+
+        ece_plot(task_name=dataset,
+                 seeds=[2, 19, 729, 982, 75, 281, 325, 195, 83, 4],
+                 learning_rate='2e-05',
+                 per_gpu_train_batch_size=32,
+                 num_train_epochs='5',
+                 indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
+                 identity_init=False, )

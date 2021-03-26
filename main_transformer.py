@@ -998,7 +998,6 @@ if __name__ == '__main__':
             if args.use_bayes_adapter: filename += '_bayes_adapter'
             if args.bayes_output: filename += '_bayes_output'
             with open(os.path.join(dirname, '{}.json'.format(filename)), 'w') as f:
-            # with open(os.path.join(dirname, 'mc{}_results.json'.format(m)), 'w') as f:
                 json.dump(mc_results, f)
         # Temperature Scaling
         temp_model = tune_temperature(eval_dataset, args, model, return_model_temp=True)
@@ -1012,5 +1011,4 @@ if __name__ == '__main__':
         if args.use_bayes_adapter: filename += '_bayes_adapter'
         if args.bayes_output: filename += '_bayes_output'
         with open(os.path.join(dirname, '{}.json'.format(filename)), 'w') as f:
-        # with open(os.path.join(dirname, 'temp_scale_results.json'), 'w') as f:
             json.dump(temp_scores, f)
