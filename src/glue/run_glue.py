@@ -364,9 +364,9 @@ def train(args, train_dataset, eval_dataset, model, tokenizer, unsup_dataset=Non
                             logs[eval_key] = value
 
                         # for classification
-                        if 'acc' in results.keys():
+                        if 'acc' in results.keys() or 'mcc' in results.keys():
                             if results['loss'] < best_val_loss:
-                                best_val_acc = results['acc']
+                                best_val_acc = results['acc'] if 'acc' in results else results['mcc']
                                 best_val_loss = results['loss']
 
                                 if args.current_output_dir is not None:
