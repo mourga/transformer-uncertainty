@@ -269,11 +269,69 @@ class MnliProcessor(DataProcessor):
 
     def get_train_examples(self, data_dir):
         """See base class."""
-        return self._create_examples(self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+        if not os.path.isfile(os.path.join(data_dir, "train_42.json")):
+            self._train_dev_split(data_dir)
+        with open(os.path.join(data_dir, "train_42.json")) as json_file:
+            [X_train, y_train] = json.load(json_file)
+        train_examples = self._create_examples(zip(X_train, y_train), "train")
+        return train_examples
+        # return self._create_examples(self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
 
     def get_dev_examples(self, data_dir):
         """See base class."""
-        return self._create_examples(self._read_tsv(os.path.join(data_dir, "dev_matched.tsv")), "dev_matched")
+        if not os.path.isfile(os.path.join(data_dir, "dev_42.json")):
+            self._train_dev_split(data_dir)
+        with open(os.path.join(data_dir, "dev_42.json")) as json_file:
+            [X_val, y_val] = json.load(json_file)
+        dev_examples = self._create_examples(zip(X_val, y_val), "dev")
+        return dev_examples
+        # return self._create_examples(self._read_tsv(os.path.join(data_dir, "dev_matched.tsv")), "dev_matched")
+
+    def get_test_examples(self, data_dir, ood=False):
+        filename_json = 'test' if not ood else 'test_ood'
+        filename_tsv = 'dev_matched' if not ood else 'dev_mismatched'
+        if os.path.isfile(os.path.join(data_dir, "{}.json".format(filename_json))):
+            with open(os.path.join(data_dir, "{}.json".format(filename_json))) as json_file:
+                [X_test, y_test] = json.load(json_file)
+        else:
+
+            lines = self._read_tsv(os.path.join(data_dir, "{}.tsv".format(filename_tsv)))
+            X_test = []
+            y_test = []
+            for (i, line) in enumerate(lines):
+                if i == 0:
+                    continue
+                X_test.append([line[8],line[9]])
+                y_test.append(line[-1])
+
+            with open(os.path.join(data_dir, "{}.json".format(filename_json)), "w") as f:
+                json.dump([X_test , y_test], f)
+
+        test_examples = self._create_examples(zip(X_test, y_test), "test")
+        return test_examples
+
+    def _train_dev_split(self, data_dir, seed=42, split=0.05):
+        """Splits train set into train and dev sets."""
+        lines = self._read_tsv(os.path.join(data_dir, "train.tsv"))
+        X = []
+        Y = []
+        for (i, line) in enumerate(lines):
+            if i == 0:
+                continue
+            X.append([line[8],line[9]])
+            Y.append(line[-1])
+
+        X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=split, stratify=Y, random_state=seed)
+
+        # Write the train set into a json file (for this seed)
+        with open(os.path.join(data_dir, "train_{}.json".format(seed)), "w") as f:
+            json.dump([X_train , Y_train], f)
+
+        # Write the dev set into a json file (for this seed)
+        with open(os.path.join(data_dir, "dev_{}.json".format(seed)), "w") as f:
+            json.dump([X_val , Y_val], f)
+
+        return
 
     def get_labels(self):
         """See base class."""
@@ -283,12 +341,17 @@ class MnliProcessor(DataProcessor):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
-            if i == 0:
-                continue
+            # if i == 0:
+            #     continue
             guid = "%s-%s" % (set_type, line[0])
-            text_a = line[8]
-            text_b = line[9]
-            label = line[-1]
+            if type(line[0][0]) is not str:
+                text_a = line[8]
+                text_b = line[9]
+                label = line[-1]
+            else:
+                text_a = line[0][0]
+                text_b = line[0][1]
+                label = line[1]
             examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples
 
@@ -315,11 +378,23 @@ class ColaProcessor(DataProcessor):
 
     def get_train_examples(self, data_dir):
         """See base class."""
-        return self._create_examples(self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+        if not os.path.isfile(os.path.join(data_dir, "train_42.json")):
+            self._train_dev_split(data_dir)
+        with open(os.path.join(data_dir, "train_42.json")) as json_file:
+            [X_train, y_train] = json.load(json_file)
+        train_examples = self._create_examples(zip(X_train, y_train), "train")
+        return train_examples
+        # return self._create_examples(self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
 
     def get_dev_examples(self, data_dir):
         """See base class."""
-        return self._create_examples(self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+        if not os.path.isfile(os.path.join(data_dir, "dev_42.json")):
+            self._train_dev_split(data_dir)
+        with open(os.path.join(data_dir, "dev_42.json")) as json_file:
+            [X_val, y_val] = json.load(json_file)
+        dev_examples = self._create_examples(zip(X_val, y_val), "dev")
+        return dev_examples
+        # return self._create_examples(self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
 
     def get_labels(self):
         """See base class."""
@@ -330,11 +405,51 @@ class ColaProcessor(DataProcessor):
         examples = []
         for (i, line) in enumerate(lines):
             guid = "%s-%s" % (set_type, i)
-            text_a = line[3]
+            # text_a = line[3]
+            # label = line[1]
+            text_a = line[0]
             label = line[1]
             examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
         return examples
 
+    def _train_dev_split(self, data_dir, seed=42):
+        """Splits train set into train and dev sets."""
+        lines = self._read_tsv(os.path.join(data_dir, "train.tsv"))
+        X = []
+        Y = []
+        for (i, line) in enumerate(lines):
+            X.append(line[3])
+            Y.append(line[1])
+
+        X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.1, stratify=Y, random_state=seed)
+
+        # Write the train set into a json file (for this seed)
+        with open(os.path.join(data_dir, "train_{}.json".format(seed)), "w") as f:
+            json.dump([X_train , Y_train], f)
+
+        # Write the dev set into a json file (for this seed)
+        with open(os.path.join(data_dir, "dev_{}.json".format(seed)), "w") as f:
+            json.dump([X_val , Y_val], f)
+
+        return
+
+    def get_test_examples(self, data_dir):
+        if os.path.isfile(os.path.join(data_dir, "test.json")):
+            with open(os.path.join(data_dir, "test.json")) as json_file:
+                [X_test, y_test] = json.load(json_file)
+        else:
+
+            lines = self._read_tsv(os.path.join(data_dir, "dev.tsv"))
+            X_test = []
+            y_test = []
+            for (i, line) in enumerate(lines):
+                if i == 0:
+                    continue
+                X_test.append(line[0])
+                y_test.append(line[1])
+
+        test_examples = self._create_examples(zip(X_test, y_test), "test")
+        return test_examples
 
 class Sst2Processor(DataProcessor):
     """Processor for the SST-2 data set (GLUE version)."""
@@ -486,11 +601,78 @@ class QqpProcessor(DataProcessor):
 
     def get_train_examples(self, data_dir):
         """See base class."""
-        return self._create_examples(self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+        if not os.path.isfile(os.path.join(data_dir, "train_42.json")):
+            self._train_dev_split(data_dir)
+        with open(os.path.join(data_dir, "train_42.json")) as json_file:
+            [X_train, y_train] = json.load(json_file)
+        train_examples = self._create_examples(zip(X_train, y_train), "train")
+        return train_examples
+        # return self._create_examples(self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
 
     def get_dev_examples(self, data_dir):
         """See base class."""
-        return self._create_examples(self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+        if not os.path.isfile(os.path.join(data_dir, "dev_42.json")):
+            self._train_dev_split(data_dir)
+        with open(os.path.join(data_dir, "dev_42.json")) as json_file:
+            [X_val, y_val] = json.load(json_file)
+        dev_examples = self._create_examples(zip(X_val, y_val), "dev")
+        return dev_examples
+        # return self._create_examples(self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+
+    def get_test_examples(self, data_dir):
+        if os.path.isfile(os.path.join(data_dir, "test.json")):
+            with open(os.path.join(data_dir, "test.json")) as json_file:
+                [X_test, y_test] = json.load(json_file)
+        else:
+
+            lines = self._read_tsv(os.path.join(data_dir, "dev.tsv"))
+            X_test = []
+            y_test = []
+            for (i, line) in enumerate(lines):
+                if i == 0:
+                    continue
+                try:
+                    text_a = line[3]
+                    text_b = line[4]
+                    label = line[5]
+                    X_test.append([text_a, text_b])
+                    y_test.append(label)
+                except IndexError:
+                    continue
+                X_test.append([text_a, text_b])
+                y_test.append(label)
+
+        test_examples = self._create_examples(zip(X_test, y_test), "test")
+        return test_examples
+
+    def _train_dev_split(self, data_dir, seed=42):
+        """Splits train set into train and dev sets."""
+        lines = self._read_tsv(os.path.join(data_dir, "train.tsv"))
+        X = []
+        Y = []
+        for (i, line) in enumerate(lines):
+            if i == 0:
+                continue
+            try:
+                text_a = line[3]
+                text_b = line[4]
+                label = line[5]
+                X.append([text_a, text_b])
+                Y.append(label)
+            except IndexError:
+                continue
+
+        X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.1, stratify=Y, random_state=seed)
+
+        # Write the train set into a json file (for this seed)
+        with open(os.path.join(data_dir, "train_{}.json".format(seed)), "w") as f:
+            json.dump([X_train , Y_train], f)
+
+        # Write the dev set into a json file (for this seed)
+        with open(os.path.join(data_dir, "dev_{}.json".format(seed)), "w") as f:
+            json.dump([X_val , Y_val], f)
+
+        return
 
     def get_labels(self):
         """See base class."""
@@ -500,15 +682,20 @@ class QqpProcessor(DataProcessor):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
-            if i == 0:
-                continue
+            # if i == 0:
+            #     continue
             guid = "%s-%s" % (set_type, line[0])
-            try:
-                text_a = line[3]
-                text_b = line[4]
-                label = line[5]
-            except IndexError:
-                continue
+            if type(line[0][0]) is not str:
+                text_a = line[0][0][0]
+                text_b = line[0][1][0]
+                label = line[1]
+            else:
+                try:
+                    text_a = line[0][0]
+                    text_b = line[0][1]
+                    label = line[1]
+                except IndexError:
+                    continue
             examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples
 

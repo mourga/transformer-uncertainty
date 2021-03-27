@@ -188,9 +188,7 @@ def get_glue_dataset(args, data_dir, task, model_type, evaluate=False, test=Fals
         )
         if task in ['sst-2', 'cola', 'ag_news', 'dbpedia', 'trec-6', 'imdb']:
             X = [x.text_a for x in examples]
-        elif task in ['mrpc', 'mnli', 'qnli', 'rte']:
-            X = list(zip([x.text_a for x in examples], [x.text_b for x in examples]))
-        elif task == 'mnli':
+        elif task in ['mrpc', 'mnli', 'qnli', 'rte', 'qqp']:
             X = list(zip([x.text_a for x in examples], [x.text_b for x in examples]))
         else:
             print(task)
@@ -235,7 +233,8 @@ def get_glue_dataset(args, data_dir, task, model_type, evaluate=False, test=Fals
 def get_glue_tensor_dataset(X_inds, args, task, tokenizer, train=False,
                             evaluate=False, test=False, augm=False, X_orig=None, X_augm=None, y_augm=None,
                             augm_features=None, dpool=False,
-                            contrast=False, contrast_ori=False):
+                            contrast=False, contrast_ori=False,
+                            ood=False):
     """
     Load tensor dataset (not original/raw).
     :param X_inds: list of indices to keep in the dataset (if None keep all)
@@ -269,6 +268,7 @@ def get_glue_tensor_dataset(X_inds, args, task, tokenizer, train=False,
         prefix="???"
     if contrast: prefix += "_contrast"
     if contrast_ori: prefix += "_contrast_ori"
+    if ood: prefix += "_ood"
 
     cached_features_file = os.path.join(
         args.data_dir,
@@ -294,7 +294,10 @@ def get_glue_tensor_dataset(X_inds, args, task, tokenizer, train=False,
             label_list[1], label_list[2] = label_list[2], label_list[1]
 
         if test:
-            examples = (processor.get_contrast_examples("test", contrast_ori) if (contrast or contrast_ori) else processor.get_test_examples(args.data_dir))
+            if ood:
+                examples = (processor.get_test_examples(args.data_dir, ood))
+            else:
+                examples = (processor.get_contrast_examples("test", contrast_ori) if (contrast or contrast_ori) else processor.get_test_examples(args.data_dir))
         elif evaluate:
             examples = (processor.get_contrast_examples("dev") if contrast else processor.get_dev_examples(args.data_dir))
         elif train:
@@ -794,6 +797,7 @@ if __name__ == '__main__':
     args.task_name = args.dataset_name.upper()
     args.cache_dir = CACHE_DIR
     args.data_dir = os.path.join(DATA_DIR, args.task_name)
+    if args.dataset_name == 'cola': args.data_dir = os.path.join(DATA_DIR, "CoLA")
     args.overwrite_cache = True
     args.evaluate_during_training = True
 
@@ -944,6 +948,8 @@ if __name__ == '__main__':
     assert len(train_dataset) == len(X_inds)
     eval_dataset = get_glue_tensor_dataset(None, args, args.task_name, tokenizer, evaluate=True)
     test_dataset = get_glue_tensor_dataset(None, args, args.task_name, tokenizer, test=True)
+    if args.dataset_name == 'mnli':
+        test_dataset_ood = get_glue_tensor_dataset(None, args, args.task_name, tokenizer, test=True, ood=True)
 
     #######################
     # Train setup
@@ -984,9 +990,14 @@ if __name__ == '__main__':
     print('Evaluate uncertainty on dev & test sets....')
     if args.test_all_uncertainty:
         # Vanilla
+        print('Evaluate vanilla....')
         vanilla_results_val, vanilla_val_logits = my_evaluate(eval_dataset, args, model, mc_samples=None)
         vanilla_results_test, vanilla_test_logits = my_evaluate(test_dataset, args, model, mc_samples=None)
         vanilla_results = {"val_results": vanilla_results_val, "test_results": vanilla_results_test}
+        if args.dataset_name == 'mnli':
+            print('Evaluate OOD!....')
+            vanilla_results_test_ood, vanilla_test_logits_ood = my_evaluate(test_dataset_ood, args, model, mc_samples=None)
+            vanilla_results['test_results_ood'] = vanilla_results_test_ood
         filename = 'vanilla_results'
         if args.use_adapter: filename += '_adapter'
         if args.use_bayes_adapter: filename += '_bayes_adapter'
@@ -996,9 +1007,14 @@ if __name__ == '__main__':
             json.dump(vanilla_results, f)
         # Monte Carlo dropout
         for m in [3,5,10,20]:
+            print('Evaluate MC dropout (N={})....'.format(m))
             mc_results_val, _ = my_evaluate(eval_dataset, args, model, mc_samples=m)
             mc_results_test, _ = my_evaluate(test_dataset, args, model, mc_samples=m)
             mc_results = {"val_results": mc_results_val, "test_results": mc_results_test}
+            if args.dataset_name == 'mnli':
+                print('Evaluate OOD!....'.format(m))
+                mc_results_test_ood, _ = my_evaluate(test_dataset_ood, args, model, mc_samples=m)
+                mc_results['test_results_ood'] = mc_results_test_ood
             filename = 'mc{}_results'.format(m)
             if args.use_adapter: filename += '_adapter'
             if args.use_bayes_adapter: filename += '_bayes_adapter'
@@ -1007,12 +1023,18 @@ if __name__ == '__main__':
             with open(os.path.join(dirname, '{}.json'.format(filename)), 'w') as f:
                 json.dump(mc_results, f)
         # Temperature Scaling
+        print('Evaluate temperature scaling....')
         temp_model = tune_temperature(eval_dataset, args, model, return_model_temp=True)
         temp_scores_val = temp_model.temp_scale_metrics(args.task_name, vanilla_val_logits,
                                                         vanilla_results_val['gold_labels'])
         temp_scores_test = temp_model.temp_scale_metrics(args.task_name, vanilla_test_logits,
                                                         vanilla_results_test['gold_labels'])
         temp_scores = {"val_results": temp_scores_val, "test_results": temp_scores_test}
+        if args.dataset_name == 'mnli':
+            print('Evaluate OOD!....'.format(m))
+            temp_scores_test_ood = temp_model.temp_scale_metrics(args.task_name, vanilla_test_logits_ood,
+                                                             vanilla_results_test_ood['gold_labels'])
+            temp_scores['test_results_ood'] = temp_scores_test_ood
         filename = 'temp_scale_results'
         if args.use_adapter: filename += '_adapter'
         if args.use_bayes_adapter: filename += '_bayes_adapter'

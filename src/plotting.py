@@ -258,8 +258,8 @@ def ece_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu
 if __name__ == '__main__':
 
     # datasets = ['sst-2', 'mrpc', 'qnli', "cola", "mnli", "mnli-mm", "sts-b", "qqp", "rte", "wnli"]
-    # datasets = ['rte', 'mrpc', 'qnli', 'sst-2']
-    datasets = ['rte', 'mrpc']
+    datasets = ['rte', 'mrpc', 'qnli', 'sst-2']
+    # datasets = ['rte', 'mrpc']
 
     indicators = [[None, 'bayes_output', 'bayes_adapter_bayes_output_unfreeze'],
                   ['adapter', 'bayes_adapter', 'bayes_adapter_bayes_output']]
