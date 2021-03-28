@@ -70,13 +70,23 @@ def read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_
 
                             val_results = results['val_results']
                             test_results = results['test_results']
+                            if 'acc' not in val_results.keys():
+                                val_acc, test_acc = None, None
+                                val_mcc = val_results['mcc']
+                                test_mcc = test_results['mcc']
+                            else:
+                                val_mcc, test_mcc = None, None
+                                val_acc = val_results['acc']
+                                test_acc = test_results['acc']
                             df0 = pd.DataFrame(
-                                {'val_acc': val_results['acc'],
+                                {'val_acc': val_acc,
+                                 'val_mcc': val_mcc,
                                  'val_ece': val_results['ece']['ece'],
                                  'val_nll': val_results['nll']['mean'],
                                  'val_entropy': val_results['entropy']['mean'],
                                  'val_brier': val_results['brier']['mean'],
-                                 'test_acc': test_results['acc'],
+                                 'test_acc': test_acc,
+                                 'test_mcc': test_mcc,
                                  'test_ece': test_results['ece']['ece'],
                                  'test_nll': test_results['nll']['mean'],
                                  'test_entropy': test_results['entropy']['mean'],
@@ -115,9 +125,10 @@ def uncertainty_plot(task_name, seeds, model_type='bert', learning_rate='2e-05',
     if not df.empty:
 
         # for d in ['test', 'val']:
+        y_plot = 'acc' if task_name != 'cola' else 'mcc'
         for d in ['test']:
             fig, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5, sharex=True, figsize=(6.0, 9.0), constrained_layout=True)
-            sns.boxplot(x='indicator', y="{}_acc".format(d), hue="method", data=df, ax=ax1, palette="deep")
+            sns.boxplot(x='indicator', y="{}_{}".format(d, y_plot), hue="method", data=df, ax=ax1, palette="deep")
             sns.boxplot(x='indicator', y="{}_ece".format(d), hue="method", data=df, ax=ax2, palette="deep")
             sns.boxplot(x='indicator', y="{}_nll".format(d), hue="method", data=df, ax=ax3, palette="deep")
             sns.boxplot(x='indicator', y="{}_brier".format(d), hue="method", data=df, ax=ax4, palette="deep")
@@ -258,11 +269,11 @@ def ece_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu
 if __name__ == '__main__':
 
     # datasets = ['sst-2', 'mrpc', 'qnli', "cola", "mnli", "mnli-mm", "sts-b", "qqp", "rte", "wnli"]
-    datasets = ['rte', 'mrpc', 'qnli', 'sst-2']
-    # datasets = ['rte', 'mrpc']
+    # datasets = ['rte', 'mrpc', 'qnli', 'sst-2', 'cola', 'mnli', 'qqp']
+    datasets = ['cola', 'mnli', 'qqp']
 
-    indicators = [[None, 'bayes_output', 'bayes_adapter_bayes_output_unfreeze'],
-                  ['adapter', 'bayes_adapter', 'bayes_adapter_bayes_output']]
+    indicators = [[None, 'bayes_output', 'bayes_adapter_bayes_output_unfreeze']]#,
+                  # ['adapter', 'bayes_adapter', 'bayes_adapter_bayes_output']]
 
     epochs = '5'
     for dataset in datasets:
