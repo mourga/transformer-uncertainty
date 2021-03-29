@@ -40,12 +40,13 @@ class ModelWithTemperature(nn.Module):
         logits = self.model(input)
         return self.temperature_scale(logits)
 
-    def temperature_scale(self, logits):
+    def temperature_scale(self, logits, temperature=None):
         """
         Perform temperature scaling on logits
         """
         # Expand temperature to match the size of logits
-        temperature = self.temperature.unsqueeze(1).expand(logits.size(0), logits.size(1))
+        if temperature is None:
+            temperature = self.temperature.unsqueeze(1).expand(logits.size(0), logits.size(1))
         return logits / temperature
 
     def eval_nll(self):
@@ -125,8 +126,8 @@ class ModelWithTemperature(nn.Module):
 
         return self
 
-    def temp_scale_metrics(self, task, logits, labels):
-        new_logits = self.temperature_scale(logits)
+    def temp_scale_metrics(self, task, logits, labels, temperature=None):
+        new_logits = self.temperature_scale(logits, temperature=temperature)
         preds = np.argmax(new_logits.detach().numpy(), axis=1)
         result = compute_metrics(task, preds, labels)
         calibration_scores = uncertainty_metrics(new_logits.detach(), labels)

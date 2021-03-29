@@ -173,7 +173,7 @@ def uncertainty_plot(task_name, seeds, model_type='bert', learning_rate='2e-05',
 
 def ece_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu_train_batch_size=16,
              num_train_epochs='3', indicators=None, methods=["vanilla", "mc3", "mc5", "mc10", "mc20", "temp_scale"],
-             identity_init=False):
+             identity_init=False, plot_method="vanilla"):
     """
     Reliability diagram
     :return:
@@ -198,15 +198,26 @@ def ece_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu
     ax.set_xlim([0, 1])
     ax.set_xlim([0, 1])
 
-    plot_method = 'vanilla'
+    # plot_method = 'vanilla'
     plotdf = df[df["method"] == plot_method]
+    vanilla_df = df[df["method"] == 'vanilla']
 
-    base = plotdf[plotdf["indicator"] == 'Base']
-    base_adapt = plotdf[plotdf["indicator"] == 'Adapters']
-    base_bayes_adapt = plotdf[plotdf["indicator"] == 'BayesAdapters']
-    bayes_output = plotdf[plotdf["indicator"] == 'BayesOutput']
-    bayes_all = plotdf[plotdf["indicator"] == 'BayesAll']
-    bayes_adapt_output = plotdf[plotdf["indicator"] == 'BayesAdapters+Output']
+    if plot_method == 'temp_scale':
+        base = plotdf[plotdf["indicator"] == 'Base']
+        bayes_output = vanilla_df[vanilla_df["indicator"] == 'BayesOutput']
+        bayes_all = vanilla_df[vanilla_df["indicator"] == 'BayesAll']
+        base_adapt = plotdf[plotdf["indicator"] == 'Adapters']
+        base_bayes_adapt = vanilla_df[vanilla_df["indicator"] == 'BayesAdapters']
+        bayes_adapt_output = vanilla_df[vanilla_df["indicator"] == 'BayesAdapters+Output']
+    else:
+        base = plotdf[plotdf["indicator"] == 'Base']
+        bayes_output = plotdf[plotdf["indicator"] == 'BayesOutput']
+
+        base_adapt = plotdf[plotdf["indicator"] == 'Adapters']
+        base_bayes_adapt = plotdf[plotdf["indicator"] == 'BayesAdapters']
+
+        bayes_all = plotdf[plotdf["indicator"] == 'BayesAll']
+        bayes_adapt_output = plotdf[plotdf["indicator"] == 'BayesAdapters+Output']
 
     # code no error bars
     # plt.plot(base_adapt['test_confs'], base_adapt['test_accs'], ls='-', color='dodgerblue', label='Adapters', marker='o', markersize=4)
@@ -231,17 +242,22 @@ def ece_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu
 
     bins = list(base.groupby('bins', as_index=False)['test_accs'].mean()['bins'])
 
+    # Base
+    if not base.empty:
+        label = 'Base' if plot_method == 'vanilla' else 'Base (Temp. Scaling)'
+        plt.errorbar(bins, base_mean, base_std, ls='-', color='lime', label=label, marker='o', markersize=4)
+    if not bayes_output.empty:
+        label = 'BayesOutput' if plot_method == 'vanilla' else 'BayesOutput (Vanilla)'
+        plt.errorbar(bins, bayes_output_mean, bayes_output_std, ls='-', color='magenta', label=label, marker='o', markersize=4)
+    if not bayes_all.empty:
+        plt.errorbar(bins, bayes_all_mean, bayes_all_std, ls='-', color='indigo', label='BayesAll', marker='o', markersize=4)
+
+    # Adapters
     if not base_adapt.empty:
         if bins == []: bins=list(base_adapt.groupby('bins', as_index=False)['test_accs'].mean()['bins'])
         plt.errorbar(bins, base_adapt_mean, base_adapt_std, ls='-', color='dodgerblue', label='Adapters', marker='o', markersize=4)
     if not base_bayes_adapt.empty:
         plt.errorbar(bins, base_bayes_adapt_mean, base_bayes_adapt_std, ls='-', color='orangered', label='BayesAdapters', marker='o', markersize=4)
-    if not base.empty:
-        plt.errorbar(bins, base_mean, base_std, ls='-', color='lime', label='Base', marker='o', markersize=4)
-    if not bayes_output.empty:
-        plt.errorbar(bins, bayes_output_mean, bayes_output_std, ls='-', color='magenta', label='BayesOutput', marker='o', markersize=4)
-    if not bayes_all.empty:
-        plt.errorbar(bins, bayes_all_mean, bayes_all_std, ls='-', color='indigo', label='BayesAll', marker='o', markersize=4)
     if not bayes_adapt_output.empty:
         plt.errorbar(bins, bayes_adapt_output_mean, bayes_adapt_output_std, ls='-', color='yellow', label='BayesOutput', marker='o', markersize=4)
 
@@ -269,10 +285,10 @@ def ece_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu
 if __name__ == '__main__':
 
     # datasets = ['sst-2', 'mrpc', 'qnli', "cola", "mnli", "mnli-mm", "sts-b", "qqp", "rte", "wnli"]
-    # datasets = ['rte', 'mrpc', 'qnli', 'sst-2', 'cola', 'mnli', 'qqp']
-    datasets = ['cola', 'mnli', 'qqp']
+    datasets = ['rte', 'mrpc', 'qnli', 'sst-2', 'cola', 'mnli', 'qqp', 'trec-6']
+    # datasets = ['cola', 'mnli', 'qqp']
 
-    indicators = [[None, 'bayes_output', 'bayes_adapter_bayes_output_unfreeze']]#,
+    indicators = [[None, 'bayes_output']]#,
                   # ['adapter', 'bayes_adapter', 'bayes_adapter_bayes_output']]
 
     epochs = '5'
@@ -280,7 +296,7 @@ if __name__ == '__main__':
         print(dataset)
         for ind in indicators:
             print('Plotting uncertainty')
-            # acc + uncertainty plot
+            # # acc + uncertainty plot
             uncertainty_plot(task_name=dataset,
                              seeds=[2, 19, 729, 982, 75, 281, 325, 195, 83, 4],
                              learning_rate='2e-05',
@@ -291,7 +307,7 @@ if __name__ == '__main__':
                              identity_init=False)
 
 
-            print('Plotting reliability diagram')
+            print('Plotting reliability diagram (vanilla)')
             ece_plot(task_name=dataset,
                      seeds=[2, 19, 729, 982, 75, 281, 325, 195, 83, 4],
                      learning_rate='2e-05',
@@ -299,3 +315,13 @@ if __name__ == '__main__':
                      num_train_epochs='5',
                      indicators=ind,
                      identity_init=False, )
+
+            print('Plotting reliability diagram (temp scale)')
+            ece_plot(task_name=dataset,
+                     seeds=[2, 19, 729, 982, 75, 281, 325, 195, 83, 4],
+                     learning_rate='2e-05',
+                     per_gpu_train_batch_size=32,
+                     num_train_epochs='5',
+                     indicators=ind,
+                     identity_init=False,
+                     plot_method='temp_scale')

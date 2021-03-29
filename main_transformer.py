@@ -234,7 +234,7 @@ def get_glue_tensor_dataset(X_inds, args, task, tokenizer, train=False,
                             evaluate=False, test=False, augm=False, X_orig=None, X_augm=None, y_augm=None,
                             augm_features=None, dpool=False,
                             contrast=False, contrast_ori=False,
-                            ood=False):
+                            ood=False, data_dir=None):
     """
     Load tensor dataset (not original/raw).
     :param X_inds: list of indices to keep in the dataset (if None keep all)
@@ -252,6 +252,7 @@ def get_glue_tensor_dataset(X_inds, args, task, tokenizer, train=False,
     if args.local_rank not in [-1, 0] and not evaluate:
         torch.distributed.barrier()  # Make sure only the first process in distributed training process the dataset, and the others will use the cache
 
+    if data_dir is None: data_dir = args.data_dir
     processor = processors[task.lower()]()
     output_mode = output_modes[task.lower()]
     # Load data features from cache or dataset file
@@ -271,7 +272,7 @@ def get_glue_tensor_dataset(X_inds, args, task, tokenizer, train=False,
     if ood: prefix += "_ood"
 
     cached_features_file = os.path.join(
-        args.data_dir,
+        data_dir,
         "cached_{}_{}_{}_{}_original".format(
             prefix,
             list(filter(None, args.model_name_or_path.split("/"))).pop(),
@@ -295,9 +296,9 @@ def get_glue_tensor_dataset(X_inds, args, task, tokenizer, train=False,
 
         if test:
             if ood:
-                examples = (processor.get_test_examples(args.data_dir, ood))
+                examples = (processor.get_test_examples(data_dir, ood))
             else:
-                examples = (processor.get_contrast_examples("test", contrast_ori) if (contrast or contrast_ori) else processor.get_test_examples(args.data_dir))
+                examples = (processor.get_contrast_examples("test", contrast_ori) if (contrast or contrast_ori) else processor.get_test_examples(data_dir))
         elif evaluate:
             examples = (processor.get_contrast_examples("dev") if contrast else processor.get_dev_examples(args.data_dir))
         elif train:
