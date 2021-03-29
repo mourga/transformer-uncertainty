@@ -918,23 +918,23 @@ if __name__ == '__main__':
 
     # The following code is in case we want to undersample the dataset to evaluate uncertainty
     # in low (data) resource scenarios
-    # args.undersampling = False
-    # if args.indicator is not None:
-    #     # Undersample training dataset (stratified sampling)
-    #     if "sample_" in args.indicator:
-    #         args.undersampling = True
-    #         num_to_sample = int(args.indicator.split("_")[1])
-    #         X_train_orig_after_sampling_inds, X_train_orig_remaining_inds, _, _ = train_test_split(
-    #             X_inds,
-    #             y_orig,
-    #             train_size=num_to_sample,
-    #             random_state=args.seed,
-    #             stratify=y_train)
-    #         X_inds = X_train_orig_after_sampling_inds   # indices of train set to original train set
-    #         # X_train = list(np.array(X_train)[X_inds])   # train set
-    #         # y_train = list(np.array(y_train)[X_inds])   # labels
-    #         # Treat the rest of training data as unlabeled data
-    #         X_unlab_inds = X_train_orig_remaining_inds  # indices of ulabeled set to original train set
+    args.undersampling = False
+    if args.indicator is not None:
+        # Undersample training dataset (stratified sampling)
+        if "sample_" in args.indicator:
+            args.undersampling = True
+            num_to_sample = int(args.indicator.split("_")[1])
+            X_train_orig_after_sampling_inds, X_train_orig_remaining_inds, _, _ = train_test_split(
+                X_inds,
+                y_orig,
+                train_size=num_to_sample,
+                random_state=args.seed,
+                stratify=y_train)
+            X_inds = X_train_orig_after_sampling_inds   # indices of train set to original train set
+            # X_train = list(np.array(X_train)[X_inds])   # train set
+            # y_train = list(np.array(y_train)[X_inds])   # labels
+            # Treat the rest of training data as unlabeled data
+            X_unlab_inds = X_train_orig_remaining_inds  # indices of ulabeled set to original train set
 
     assert len(X_unlab_inds) + len(X_inds) == len(X_orig)
     assert bool(not (set(X_unlab_inds) & set(X_inds)))
