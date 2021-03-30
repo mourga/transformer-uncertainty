@@ -213,6 +213,9 @@ if __name__ == '__main__':
             )
         )
 
+    if not os.path.exists(args.output_dir):
+        print('No model here! {}'.format(args.output_dir))
+        exit()
     #########################################
     # Setup logging
     #########################################
@@ -246,6 +249,16 @@ if __name__ == '__main__':
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
 
     args.model_type = args.model_type.lower()
+
+    if args.dataset_name == 'dbpedia':
+        args.num_classes = 14
+    elif args.dataset_name == 'ag_news':
+        args.num_classes = 4
+    elif args.dataset_name == 'mnli':
+        args.num_classes = 3
+    else:
+        args.num_classes = 2
+    args.binary = True if args.num_classes==2 else False
 
     config_class, model_class, tokenizer_class = MODEL_CLASSES[args.model_type]
 
