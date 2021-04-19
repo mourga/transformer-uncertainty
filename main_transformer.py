@@ -743,6 +743,8 @@ if __name__ == '__main__':
     ##########################################################################
     parser.add_argument("--dataset_name", default=None, required=True, type=str,
                         help="Dataset [mrpc, ag_news, qnli, sst-2, trec-6]")
+    parser.add_argument("--data_dir", default=None, required=False, type=str,
+                        help="Datasets folder")
     # parser.add_argument("--task_name", default=None, type=str, help="Task [MRPC, AG_NEWS, QNLI, SST-2]")
     parser.add_argument("--max_seq_length", default=256, type=int, help="Max sequence length")
     ##########################################################################
@@ -797,7 +799,8 @@ if __name__ == '__main__':
 
     args.task_name = args.dataset_name.upper()
     args.cache_dir = CACHE_DIR
-    args.data_dir = os.path.join(DATA_DIR, args.task_name)
+    if args.data_dir is None:
+        args.data_dir = os.path.join(DATA_DIR, args.task_name)
     if args.dataset_name == 'cola': args.data_dir = os.path.join(DATA_DIR, "CoLA")
     args.overwrite_cache = True
     args.evaluate_during_training = True

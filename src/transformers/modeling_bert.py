@@ -1458,7 +1458,10 @@ class BertForSequenceClassification(BertPreTrainedModel):
             sigma = nn.Softplus()(sigma)
 
             distribution = torch.distributions.Normal(loc=mu, scale=sigma)
-            logits = distribution.rsample()
+            if not self.training:
+                logits = mu
+            else:
+                logits = distribution.rsample()
         else:
             logits = self.classifier(pooled_output)
 
