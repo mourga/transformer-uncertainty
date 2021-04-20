@@ -135,7 +135,8 @@ def read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_
 
 def uncertainty_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu_train_batch_size=16,
                      num_train_epochs='3', indicators=None,
-                     methods=["vanilla", "mc3", "mc5", "mc10", "mc20", "temp_scale"],
+                     # methods=["vanilla", "mc3", "mc5", "mc10", "mc20", "temp_scale"],
+                     methods=["vanilla", "mc3", "mc5", "mc10", "mc20"],
                      identity_init=False,
                      ood=False,
                      few_shot=False):
@@ -149,7 +150,8 @@ def uncertainty_plot(task_name, seeds, model_type='bert', learning_rate='2e-05',
 
     if few_shot:
         df_list = []
-        for f in ['sample_100', 'sample_1000', 'sample_10000']:
+        # for f in ['sample_100', 'sample_1000', 'sample_10000']:
+        for f in ['sample_20', 'sample_200', 'sample_2000']:
             df_ = read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, 20,
                                     indicators, methods, task_name, identity_init=False, ood=ood, few_shot=f)
             df_['num_samples'] = int(f.split('_')[-1])
@@ -348,7 +350,7 @@ def ece_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu
 if __name__ == '__main__':
 
     # datasets = ['sst-2', 'mrpc', 'qnli', "cola", "mnli", "mnli-mm", "sts-b", "qqp", "rte", "wnli"]
-    datasets = ['rte', 'mrpc', 'qnli', 'sst-2', 'cola', 'mnli', 'qqp', 'trec-6']
+    datasets = ['rte', 'mrpc', 'qnli', 'sst-2', 'cola', 'mnli', 'qqp', 'trec-6', 'imdb', 'ag_news']
     # datasets = ['sst-2', 'mnli', 'qqp']
 
     indicators = [[None, 'bayes_output']]#,
@@ -362,7 +364,7 @@ if __name__ == '__main__':
             # acc + uncertainty plot
             epochs='20' if dataset == 'trec-6' else '5'
             uncertainty_plot(task_name=dataset,
-                             seeds=[2, 19, 729, 982, 75, 281, 325, 195, 83, 4],
+                             seeds=[2, 19, 729, 982, 75],
                              learning_rate='2e-05',
                              per_gpu_train_batch_size=32,
                              # num_train_epochs='5',
@@ -374,7 +376,7 @@ if __name__ == '__main__':
             # # Acc + uncertainty OOD
             print('Plotting uncertainty OOD')
             uncertainty_plot(task_name=dataset,
-                             seeds=[2, 19, 729, 982, 75, 281, 325, 195, 83, 4],
+                             seeds=[2, 19, 729, 982, 75],
                              learning_rate='2e-05',
                              per_gpu_train_batch_size=32,
                              num_train_epochs='5',
@@ -384,7 +386,7 @@ if __name__ == '__main__':
 
             print('Plotting uncertainty few shot')
             uncertainty_plot(task_name=dataset,
-                             seeds=[2, 19, 729, 982, 75, 281, 325, 195, 83, 4],
+                             seeds=[2, 19, 729, 982, 75],
                              learning_rate='2e-05',
                              per_gpu_train_batch_size=32,
                              num_train_epochs='5',
@@ -395,7 +397,7 @@ if __name__ == '__main__':
 
             print('Plotting reliability diagram (vanilla)')
             ece_plot(task_name=dataset,
-                     seeds=[2, 19, 729, 982, 75, 281, 325, 195, 83, 4],
+                     seeds=[2, 19, 729, 982, 75],
                      learning_rate='2e-05',
                      per_gpu_train_batch_size=32,
                      # num_train_epochs='5',
@@ -405,7 +407,7 @@ if __name__ == '__main__':
 
             print('Plotting reliability diagram (temp scale)')
             ece_plot(task_name=dataset,
-                     seeds=[2, 19, 729, 982, 75, 281, 325, 195, 83, 4],
+                     seeds=[2, 19, 729, 982, 75],
                      learning_rate='2e-05',
                      per_gpu_train_batch_size=32,
                      # num_train_epochs='5',

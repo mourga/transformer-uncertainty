@@ -21,5 +21,6 @@ IMDB_CONTR_DATA_DIR = os.path.join(CONTR_DATA_DIR, 'IMDb', 'data')
 
 CACHE_DIR = os.path.join(BASE_DIR, 'cache')
 
+# RES_DIR = os.path.join(BASE_DIR, 'results')
 RES_DIR = os.path.join(BASE_DIR, 'results')
 
