@@ -246,7 +246,7 @@ def ece_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu
     if type(indicators) is not list: indicators = [indicators]
 
     df_ = read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_train_epochs,
-                            indicators, methods, task_name, ece=True,ood=ood)
+                            indicators, methods, task_name, ece=True, ood=ood)
     df = df.append(df_, ignore_index=True)
 
     if df.empty: return
@@ -262,6 +262,12 @@ def ece_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu
     # plot_method = 'vanilla'
     plotdf = df[df["method"] == plot_method]
     vanilla_df = df[df["method"] == 'vanilla']
+    mc_df = df[df["method"] == 'mc10']
+    temp_df = df[df["method"] == 'temp_scale']
+
+    base_vanilla = vanilla_df[vanilla_df["indicator"] == 'Base']
+    base_temp = temp_df[temp_df["indicator"] == 'Base']
+    base_mc = mc_df[mc_df["indicator"] == 'Base']
 
     if plot_method == 'temp_scale':
         base = plotdf[plotdf["indicator"] == 'Base']
@@ -289,41 +295,70 @@ def ece_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu
     # find mean accuracy per bin
     base_mean = list(base.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
     base_std = list(base.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
-    base_adapt_mean = list(base_adapt.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
-    base_adapt_std = list(base_adapt.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
-    base_bayes_adapt_mean = list(base_bayes_adapt.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
-    base_bayes_adapt_std = list(base_bayes_adapt.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
+    # base_adapt_mean = list(base_adapt.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
+    # base_adapt_std = list(base_adapt.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
+    # base_bayes_adapt_mean = list(base_bayes_adapt.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
+    # base_bayes_adapt_std = list(base_bayes_adapt.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
     bayes_output_mean = list(bayes_output.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
     bayes_output_std = list(bayes_output.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
 
-    bayes_all_mean = list(bayes_all.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
-    bayes_all_std = list(bayes_all.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
-    bayes_adapt_output_mean = list(bayes_adapt_output.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
-    bayes_adapt_output_std = list(bayes_adapt_output.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
+    # bayes_all_mean = list(bayes_all.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
+    # bayes_all_std = list(bayes_all.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
+    # bayes_adapt_output_mean = list(bayes_adapt_output.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
+    # bayes_adapt_output_std = list(bayes_adapt_output.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
 
+    # Base vanilla
+    base_vanilla_mean = list(base_vanilla.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
+    base_vanilla_std = list(base_vanilla.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
+    # Base MC
+    base_mc_mean = list(base_mc.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
+    base_mc_std = list(base_mc.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
+    # Base Temperature Scaling
+    base_temp_mean = list(base_temp.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
+    base_temp_std = list(base_temp.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
     bins = list(base.groupby('bins', as_index=False)['test_accs'].mean()['bins'])
 
     # Base
-    if not base.empty:
-        label = 'Base' if plot_method == 'vanilla' else 'Base (Temp. Scaling)'
-        plt.errorbar(bins, base_mean, base_std, ls='-', color='lime', label=label, marker='o', markersize=4)
-    if not bayes_output.empty:
-        label = 'BayesOutput' if plot_method == 'vanilla' else 'BayesOutput (Vanilla)'
-        plt.errorbar(bins, bayes_output_mean, bayes_output_std, ls='-', color='magenta', label=label, marker='o', markersize=4)
-    if not bayes_all.empty:
-        plt.errorbar(bins, bayes_all_mean, bayes_all_std, ls='-', color='indigo', label='BayesAll', marker='o', markersize=4)
+    # if not base.empty:
+    #     label = 'Base' if plot_method == 'vanilla' else 'Base (Temp. Scaling)'
+    #     plt.errorbar(bins, base_mean, base_std, ls='-', color='lime', label=label, marker='o', markersize=4)
+    bayes_color = 'orangered'
+    base_color_vanilla = 'royalblue'
+    base_color_temp = 'navy'
+    base_color_mc = 'blue'
+    if not base_vanilla.empty:
+        # label = 'Base' if plot_method == 'vanilla' else 'Base (Temp. Scaling)'
+        label = 'Base (Vanilla)'
+        plt.errorbar(bins, base_vanilla_mean, base_vanilla_std, ls='-', color=base_color_vanilla, label=label, marker='o', markersize=3,
+                     linewidth=1)
+    if not base_mc.empty:
+        label = 'Base (MC)'
+        plt.errorbar(bins, base_mc_mean, base_mc_std, ls='dashdot', color=base_color_mc, label=label, marker='^', markersize=3,
+                     linewidth=1)
+    if not base_temp.empty:
+        label = 'Base (Temp. Scaling)'
+        plt.errorbar(bins, base_temp_mean, base_temp_std, ls='dotted', color=base_color_temp, label=label, marker='v', markersize=3,
+                     linewidth=1)
 
-    # Adapters
-    if not base_adapt.empty:
-        if bins == []: bins=list(base_adapt.groupby('bins', as_index=False)['test_accs'].mean()['bins'])
-        plt.errorbar(bins, base_adapt_mean, base_adapt_std, ls='-', color='dodgerblue', label='Adapters', marker='o', markersize=4)
-    if not base_bayes_adapt.empty:
-        plt.errorbar(bins, base_bayes_adapt_mean, base_bayes_adapt_std, ls='-', color='orangered', label='BayesAdapters', marker='o', markersize=4)
-    if not bayes_adapt_output.empty:
-        plt.errorbar(bins, bayes_adapt_output_mean, bayes_adapt_output_std, ls='-', color='yellow', label='BayesOutput', marker='o', markersize=4)
+    if not bayes_output.empty:
+        # label = 'BayesOutput' if plot_method == 'vanilla' else 'BayesOutput (Vanilla)'
+        label = 'BayesOutput (Vanilla)'
+        plt.errorbar(bins, bayes_output_mean, bayes_output_std, ls='-', color=bayes_color, label=label, marker='o', markersize=3,
+                     linewidth=1)
+    # if not bayes_all.empty:
+    #     plt.errorbar(bins, bayes_all_mean, bayes_all_std, ls='-', color='indigo', label='BayesAll', marker='o', markersize=4)
+
+    # # Adapters
+    # if not base_adapt.empty:
+    #     if bins == []: bins=list(base_adapt.groupby('bins', as_index=False)['test_accs'].mean()['bins'])
+    #     plt.errorbar(bins, base_adapt_mean, base_adapt_std, ls='-', color='dodgerblue', label='Adapters', marker='o', markersize=4)
+    # if not base_bayes_adapt.empty:
+    #     plt.errorbar(bins, base_bayes_adapt_mean, base_bayes_adapt_std, ls='-', color='orangered', label='BayesAdapters', marker='o', markersize=4)
+    # if not bayes_adapt_output.empty:
+    #     plt.errorbar(bins, bayes_adapt_output_mean, bayes_adapt_output_std, ls='-', color='yellow', label='BayesOutput', marker='o', markersize=4)
 
     plt.plot(np.arange(0, 1.2, 0.2), np.arange(0, 1.2, 0.2), color='black', ls='--')
-    plt.legend(loc='upper left', frameon=False)
+    plt.legend(loc='upper left', frameon=False, fontsize=9)
 
     plt.xlabel('Confidence', fontsize=14)
     plt.ylabel('Accuracy', fontsize=14)
@@ -333,12 +368,13 @@ def ece_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu
     else:
         plt.title(task_name.upper())
     plt.style.use("seaborn-colorblind")
-    filename = "reliability_diagram_{}_{}".format(d, plot_method)
+    # filename = "reliability_diagram_{}_{}".format(d, plot_method)
+    filename = "reliability_diagram_{}_{}".format(d, task_name)
     if identity_init: filename += '_identity'
-    if None in indicators:
-        filename += '_base'
-    else:
-        filename += '_adapters'
+    # if None in indicators:
+    #     filename += '_base'
+    # else:
+    #     filename += '_adapters'
     if ood: filename += '_ood'
     plt.savefig(os.path.join(path, filename + '.png'),
                 dpi=300,
@@ -350,8 +386,8 @@ def ece_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu
 if __name__ == '__main__':
 
     # datasets = ['sst-2', 'mrpc', 'qnli', "cola", "mnli", "mnli-mm", "sts-b", "qqp", "rte", "wnli"]
-    datasets = ['rte', 'mrpc', 'qnli', 'sst-2', 'cola', 'mnli', 'qqp', 'trec-6', 'imdb', 'ag_news']
-    # datasets = ['sst-2', 'mnli', 'qqp']
+    datasets = ['rte', 'mrpc', 'qnli', 'sst-2', 'mnli', 'qqp', 'trec-6', 'imdb', 'ag_news']
+    # datasets = ['imdb']
 
     indicators = [[None, 'bayes_output']]#,
                   # ['adapter', 'bayes_adapter', 'bayes_adapter_bayes_output']]
@@ -360,50 +396,50 @@ if __name__ == '__main__':
     for dataset in datasets:
         print(dataset)
         for ind in indicators:
-            print('Plotting uncertainty')
-            # acc + uncertainty plot
-            epochs='20' if dataset == 'trec-6' else '5'
-            uncertainty_plot(task_name=dataset,
-                             seeds=[2, 19, 729, 982, 75],
-                             learning_rate='2e-05',
-                             per_gpu_train_batch_size=32,
-                             # num_train_epochs='5',
-                             num_train_epochs=epochs,
-                             # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
-                             indicators=ind,
-                             identity_init=False)
-
-            # # Acc + uncertainty OOD
-            print('Plotting uncertainty OOD')
-            uncertainty_plot(task_name=dataset,
-                             seeds=[2, 19, 729, 982, 75],
-                             learning_rate='2e-05',
-                             per_gpu_train_batch_size=32,
-                             num_train_epochs='5',
-                             # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
-                             indicators=ind,
-                             ood=True)
-
-            print('Plotting uncertainty few shot')
-            uncertainty_plot(task_name=dataset,
-                             seeds=[2, 19, 729, 982, 75],
-                             learning_rate='2e-05',
-                             per_gpu_train_batch_size=32,
-                             num_train_epochs='5',
-                             # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
-                             indicators=ind,
-                             few_shot=True)
-
-
-            print('Plotting reliability diagram (vanilla)')
-            ece_plot(task_name=dataset,
-                     seeds=[2, 19, 729, 982, 75],
-                     learning_rate='2e-05',
-                     per_gpu_train_batch_size=32,
-                     # num_train_epochs='5',
-                     num_train_epochs=epochs,
-                     indicators=ind,
-                     identity_init=False, )
+        #     print('Plotting uncertainty')
+        #     # acc + uncertainty plot
+        #     epochs='20' if dataset == 'trec-6' else '5'
+        #     uncertainty_plot(task_name=dataset,
+        #                      seeds=[2, 19, 729, 982, 75],
+        #                      learning_rate='2e-05',
+        #                      per_gpu_train_batch_size=32,
+        #                      # num_train_epochs='5',
+        #                      num_train_epochs=epochs,
+        #                      # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
+        #                      indicators=ind,
+        #                      identity_init=False)
+        #
+        #     # # Acc + uncertainty OOD
+        #     print('Plotting uncertainty OOD')
+        #     uncertainty_plot(task_name=dataset,
+        #                      seeds=[2, 19, 729, 982, 75],
+        #                      learning_rate='2e-05',
+        #                      per_gpu_train_batch_size=32,
+        #                      num_train_epochs='5',
+        #                      # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
+        #                      indicators=ind,
+        #                      ood=True)
+        #
+        #     print('Plotting uncertainty few shot')
+        #     uncertainty_plot(task_name=dataset,
+        #                      seeds=[2, 19, 729, 982, 75],
+        #                      learning_rate='2e-05',
+        #                      per_gpu_train_batch_size=32,
+        #                      num_train_epochs='5',
+        #                      # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
+        #                      indicators=ind,
+        #                      few_shot=True)
+        #
+        #
+        #     print('Plotting reliability diagram (vanilla)')
+        #     ece_plot(task_name=dataset,
+        #              seeds=[2, 19, 729, 982, 75],
+        #              learning_rate='2e-05',
+        #              per_gpu_train_batch_size=32,
+        #              # num_train_epochs='5',
+        #              num_train_epochs=epochs,
+        #              indicators=ind,
+        #              identity_init=False, )
 
             print('Plotting reliability diagram (temp scale)')
             ece_plot(task_name=dataset,
@@ -416,11 +452,11 @@ if __name__ == '__main__':
                      identity_init=False,
                      plot_method='temp_scale')
 
-            print('Plotting reliability diagram OOD (vanilla)')
-            ece_plot(task_name=dataset,
-                     seeds=[2, 19, 729, 982, 75, 281, 325, 195, 83, 4],
-                     learning_rate='2e-05',
-                     per_gpu_train_batch_size=32,
-                     num_train_epochs='5',
-                     indicators=ind,
-                     ood=True, )
+            # print('Plotting reliability diagram OOD (vanilla)')
+            # ece_plot(task_name=dataset,
+            #          seeds=[2, 19, 729, 982, 75, 281, 325, 195, 83, 4],
+            #          learning_rate='2e-05',
+            #          per_gpu_train_batch_size=32,
+            #          num_train_epochs='5',
+            #          indicators=ind,
+            #          ood=True, )
