@@ -117,7 +117,7 @@ MODEL_CLASSES = {
 }
 
 
-def get_glue_dataset(args, data_dir, task, model_type, evaluate=False, test=False, contrast=False):
+def get_glue_dataset(args, data_dir, task, model_type, evaluate=False, test=False, contrast=False, ood=False):
     """
     Loads original glue dataset.
     :param data_dir: path ../data/[task]
@@ -130,6 +130,7 @@ def get_glue_dataset(args, data_dir, task, model_type, evaluate=False, test=Fals
     :param test: if True return contrast set
     :return:
     """
+    create_dir(data_dir)
     processor = processors[task]()
     output_mode = output_modes[task]
     tokenizer = AutoTokenizer.from_pretrained(
@@ -141,6 +142,7 @@ def get_glue_dataset(args, data_dir, task, model_type, evaluate=False, test=Fals
     # Load data features from cache or dataset file
     if test:
         filename = "cached_{}_{}_original".format("test_contrast", str(task)) if contrast else "cached_{}_{}_original".format("test", str(task))
+        if ood: filename += '_ood'
         cached_dataset = os.path.join(
             data_dir,
             filename
@@ -164,9 +166,14 @@ def get_glue_dataset(args, data_dir, task, model_type, evaluate=False, test=Fals
             # HACK(label indices are swapped in RoBERTa pretrained model)
             label_list[1], label_list[2] = label_list[2], label_list[1]
         if test:
-            examples = (
-                processor.get_contrast_examples("test") if contrast else processor.get_test_examples(data_dir)
-            )
+            if ood:
+                examples = (
+                    processor.get_test_examples_ood(data_dir)
+                )
+            else:
+                examples = (
+                    processor.get_contrast_examples("test") if contrast else processor.get_test_examples(data_dir)
+                )
         else:
             if evaluate and contrast:
                 examples = (
@@ -188,8 +195,10 @@ def get_glue_dataset(args, data_dir, task, model_type, evaluate=False, test=Fals
         )
         if task in ['sst-2', 'cola', 'ag_news', 'dbpedia', 'trec-6', 'imdb']:
             X = [x.text_a for x in examples]
-        elif task in ['mrpc', 'mnli', 'qnli', 'rte', 'qqp']:
+        elif task in ['mrpc', 'mnli', 'qnli', 'rte', 'qqp', 'wnli']:
             X = list(zip([x.text_a for x in examples], [x.text_b for x in examples]))
+        # elif task == 'mnli':
+        #     X = list(zip([x.text_a for x in examples], [x.text_b for x in examples]))
         else:
             print(task)
             NotImplementedError
@@ -202,6 +211,7 @@ def get_glue_dataset(args, data_dir, task, model_type, evaluate=False, test=Fals
         # Save Tensor Dataset
         if test:
             filename = "test_contrast" if contrast else "test"
+            if ood: filename += '_ood'
             features_dataset = os.path.join(
                 args.data_dir,
                 "cached_{}_{}_{}_{}_original".format(
@@ -574,6 +584,7 @@ def my_evaluate(eval_dataset, args, model, prefix="", mc_samples=None,
         results.update(calibration_scores)
         results.update({'bert_output': bert_output_list})
         results.update({'gold_labels': out_label_ids.tolist()})
+    results['loss'] = eval_loss
     # return results, eval_loss, accuracy, f1, precision, recall, logits
     return results, logits
 
@@ -602,6 +613,7 @@ def train_transformer(args, train_dataset, eval_dataset, model, tokenizer):
     ##############################
     # Train model
     ##############################
+    _, model_class, _ = MODEL_CLASSES[args.model_type]
     global_step, tr_loss, val_acc, val_loss = train(args, train_dataset, eval_dataset, model, tokenizer)
     logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
 
