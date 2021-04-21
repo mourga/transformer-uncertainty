@@ -12,8 +12,7 @@ import numpy as np
 import torch
 from sklearn.model_selection import train_test_split
 
-from torch.utils.data import TensorDataset
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+# from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 sys.path.append("../../")
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -68,11 +67,11 @@ def train_transformer_model(args, X_inds, X_val_inds=None,
         num_labels=num_labels,
         finetuning_task=args.task_name,
         cache_dir=args.cache_dir if args.cache_dir else None,
-        use_adapter=args.use_adapter,
-        use_bayes_adapter=args.use_bayes_adapter,
-        adapter_initializer_range=0.0002 if args.indicator == 'identity_init' else 1,
+        # use_adapter=args.use_adapter,
+        # use_bayes_adapter=args.use_bayes_adapter,
+        # adapter_initializer_range=0.0002 if args.indicator == 'identity_init' else 1,
         bayes_output=args.bayes_output,
-        unfreeze_adapters=args.unfreeze_adapters
+        # unfreeze_adapters=args.unfreeze_adapters
 
     )
     tokenizer = tokenizer_class.from_pretrained(
@@ -143,7 +142,8 @@ def train_transformer_model(args, X_inds, X_val_inds=None,
     train_loss = train_loss_list[best_trial - 1]
     results = results_list[best_trial - 1]
     best_model_ckpt = original_output_dir + '_trial{}'.format(best_trial)
-    model = AutoModelForSequenceClassification.from_pretrained(best_model_ckpt)
+    # model = AutoModelForSequenceClassification.from_pretrained(best_model_ckpt)
+    model = model_class.from_pretrained(best_model_ckpt)
     model.to(args.device)
     if os.path.isdir(original_output_dir):
         shutil.rmtree(original_output_dir)
@@ -176,12 +176,18 @@ def test_transformer_model(args, X_inds, model=None, ckpt=None, dataset=None):
     :param ckpt: path to model checkpoint
     :return:
     """
+    config_class, model_class, tokenizer_class = MODEL_CLASSES[args.model_type]
     if dataset is None:
-        tokenizer = AutoTokenizer.from_pretrained(
+        tokenizer = tokenizer_class.from_pretrained(
             args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
-            cache_dir=args.cache_dir,
-            use_fast=args.use_fast_tokenizer,
+            do_lower_case=args.do_lower_case,
+            cache_dir=args.cache_dir if args.cache_dir else None,
         )
+        # tokenizer = AutoTokenizer.from_pretrained(
+        #     args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
+        #     cache_dir=args.cache_dir,
+        #     use_fast=args.use_fast_tokenizer,
+        # )
 
         # it is not the eval dataset it's the Dpool
         dpool_dataset = get_glue_tensor_dataset(X_inds, args, args.task_name, tokenizer, train=True)
@@ -190,7 +196,7 @@ def test_transformer_model(args, X_inds, model=None, ckpt=None, dataset=None):
         # dataset to test model on
         dpool_dataset = dataset
     if model is None:
-        model = AutoModelForSequenceClassification.from_pretrained(ckpt)
+        model = model_class.from_pretrained(ckpt)
         model.to(args.device)
     print('MC samples N={}'.format(args.mc_samples))
     result, logits = my_evaluate(dpool_dataset, args, model, mc_samples=args.mc_samples)
@@ -275,10 +281,16 @@ def loop(args):
         args.init_train_data = round(len(X_train_original_inds) * 1 / 100)  # 1%
         args.budget = round(len(X_train_original_inds) * 27 / 100)  # 25%
 
-    tokenizer = AutoTokenizer.from_pretrained(
+    # tokenizer = AutoTokenizer.from_pretrained(
+    #     args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
+    #     cache_dir=args.cache_dir,
+    #     use_fast=args.use_fast_tokenizer,
+    # )
+    config_class, model_class, tokenizer_class = MODEL_CLASSES[args.model_type]
+    tokenizer = tokenizer_class.from_pretrained(
         args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
-        cache_dir=args.cache_dir,
-        use_fast=args.use_fast_tokenizer,
+        do_lower_case=args.do_lower_case,
+        cache_dir=args.cache_dir if args.cache_dir else None,
     )
 
     ##############################################################
