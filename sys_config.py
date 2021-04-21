@@ -24,5 +24,5 @@ CACHE_DIR = os.path.join(BASE_DIR, 'cache')
 # RES_DIR = os.path.join(BASE_DIR, 'results')
 RES_DIR = os.path.join(BASE_DIR, 'results')
 
-AL_RES_DIR = os.path.join(BASE_DIR, 'al_results')
+AL_RES_DIR = os.path.join(BASE_DIR, 'results_al')
 
