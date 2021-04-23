@@ -1000,7 +1000,7 @@ if __name__ == '__main__':
     # with open(os.path.join(dirname, 'results.json'), 'w') as f:
     #     json.dump(results, f)
 
-    #######################s
+    #######################
     # Test uncertainty
     #######################
     print('Evaluate uncertainty on dev & test sets....')
@@ -1057,4 +1057,76 @@ if __name__ == '__main__':
         if args.bayes_output: filename += '_bayes_output'
         if (args.use_adapter or args.bayes_output) and args.unfreeze_adapters: filename += '_unfreeze'
         with open(os.path.join(dirname, '{}.json'.format(filename)), 'w') as f:
+            json.dump(temp_scores, f)
+
+    #######################
+    # Test uncertainty OOD
+    #######################
+    if args.dataset_name == 'mnli':
+        test_dataset_ood = get_glue_tensor_dataset(None, args, args.task_name, tokenizer, test=True, ood=True)
+    elif args.dataset_name == 'qqp':
+        test_dataset_ood = get_glue_tensor_dataset(None, args, 'mrpc', tokenizer, test=True,
+                                                   data_dir=os.path.join(DATA_DIR, 'MRPC'))
+    elif args.dataset_name == 'mrpc':
+        test_dataset_ood = get_glue_tensor_dataset(None, args, 'qqp', tokenizer, test=True,
+                                                   data_dir=os.path.join(DATA_DIR, 'QQP'))
+    elif args.dataset_name == 'sst-2':
+        test_dataset_ood = get_glue_tensor_dataset(None, args, 'imdb', tokenizer, test=True,
+                                                   data_dir=os.path.join(DATA_DIR, 'IMDB'))
+    elif args.dataset_name == 'imdb':
+        test_dataset_ood = get_glue_tensor_dataset(None, args, 'sst-2', tokenizer, test=True,
+                                                   data_dir=os.path.join(DATA_DIR, 'SST-2'))
+    elif args.dataset_name == 'rte':
+        test_dataset_ood = get_glue_tensor_dataset(None, args, 'qnli', tokenizer, test=True,
+                                                   data_dir=os.path.join(DATA_DIR, 'QNLI'))
+    elif args.dataset_name == 'qnli':
+        test_dataset_ood = get_glue_tensor_dataset(None, args, 'rte', tokenizer, test=True,
+                                                   data_dir=os.path.join(DATA_DIR, 'RTE'))
+    else:
+        raise NotImplementedError
+
+        #######################
+        # Test uncertainty
+        #######################
+    print('Evaluate uncertainty on dev & test sets....')
+    if args.test_all_uncertainty:
+        # Vanilla
+        print('Evaluate OOD....')
+        vanilla_ood_results, vanilla_ood_logits = my_evaluate(test_dataset_ood, args, model, mc_samples=None)
+        vanilla_results = {"test_ood_results": vanilla_ood_results}
+        filename = 'vanilla_results'
+        if args.use_adapter: filename += '_adapter'
+        if args.use_bayes_adapter: filename += '_bayes_adapter'
+        if args.bayes_output: filename += '_bayes_output'
+        if (args.use_adapter or args.bayes_output) and args.unfreeze_adapters: filename += '_unfreeze'
+        with open(os.path.join(dirname, '{}_ood.json'.format(filename)), 'w') as f:
+            json.dump(vanilla_results, f)
+        # Monte Carlo dropout
+        for m in [3, 5, 10, 20]:
+            print('Evaluate MC dropout (N={})....'.format(m))
+            mc_ood_results, _ = my_evaluate(test_dataset_ood, args, model, mc_samples=m)
+            mc_results = {"test_ood_results": mc_ood_results}
+            filename = 'mc{}_results'.format(m)
+            if args.use_adapter: filename += '_adapter'
+            if args.use_bayes_adapter: filename += '_bayes_adapter'
+            if args.bayes_output: filename += '_bayes_output'
+            if (args.use_adapter or args.bayes_output) and args.unfreeze_adapters: filename += '_unfreeze'
+            with open(os.path.join(dirname, '{}_ood.json'.format(filename)), 'w') as f:
+                json.dump(mc_results, f)
+        # Temperature Scaling
+        print('Evaluate temperature scaling....')
+        with open(dirname) as json_file:
+            results = json.load(json_file)
+            temperature = results['val_results']['temperature']
+        temp_model = tune_temperature(test_dataset_ood, args, model, return_model_temp=True)
+        temp_ood_scores = temp_model.temp_scale_metrics(args.task_name, vanilla_ood_logits,
+                                                        vanilla_ood_results['gold_labels'],
+                                                        temperature=temperature)
+        temp_scores = {"test_ood_results": temp_ood_scores}
+        filename = 'temp_scale_results'
+        if args.use_adapter: filename += '_adapter'
+        if args.use_bayes_adapter: filename += '_bayes_adapter'
+        if args.bayes_output: filename += '_bayes_output'
+        if (args.use_adapter or args.bayes_output) and args.unfreeze_adapters: filename += '_unfreeze'
+        with open(os.path.join(dirname, '{}_ood.json'.format(filename)), 'w') as f:
             json.dump(temp_scores, f)
