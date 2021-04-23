@@ -1010,10 +1010,10 @@ if __name__ == '__main__':
         vanilla_results_val, vanilla_val_logits = my_evaluate(eval_dataset, args, model, mc_samples=None)
         vanilla_results_test, vanilla_test_logits = my_evaluate(test_dataset, args, model, mc_samples=None)
         vanilla_results = {"val_results": vanilla_results_val, "test_results": vanilla_results_test}
-        if args.dataset_name == 'mnli':
-            print('Evaluate OOD!....')
-            vanilla_results_test_ood, vanilla_test_logits_ood = my_evaluate(test_dataset_ood, args, model, mc_samples=None)
-            vanilla_results['test_results_ood'] = vanilla_results_test_ood
+        # if args.dataset_name == 'mnli':
+        #     print('Evaluate OOD!....')
+        #     vanilla_results_test_ood, vanilla_test_logits_ood = my_evaluate(test_dataset_ood, args, model, mc_samples=None)
+        #     vanilla_results['test_results_ood'] = vanilla_results_test_ood
         filename = 'vanilla_results'
         if args.use_adapter: filename += '_adapter'
         if args.use_bayes_adapter: filename += '_bayes_adapter'
@@ -1027,10 +1027,10 @@ if __name__ == '__main__':
             mc_results_val, _ = my_evaluate(eval_dataset, args, model, mc_samples=m)
             mc_results_test, _ = my_evaluate(test_dataset, args, model, mc_samples=m)
             mc_results = {"val_results": mc_results_val, "test_results": mc_results_test}
-            if args.dataset_name == 'mnli':
-                print('Evaluate OOD!....'.format(m))
-                mc_results_test_ood, _ = my_evaluate(test_dataset_ood, args, model, mc_samples=m)
-                mc_results['test_results_ood'] = mc_results_test_ood
+            # if args.dataset_name == 'mnli':
+            #     print('Evaluate OOD!....'.format(m))
+            #     mc_results_test_ood, _ = my_evaluate(test_dataset_ood, args, model, mc_samples=m)
+            #     mc_results['test_results_ood'] = mc_results_test_ood
             filename = 'mc{}_results'.format(m)
             if args.use_adapter: filename += '_adapter'
             if args.use_bayes_adapter: filename += '_bayes_adapter'
@@ -1046,11 +1046,11 @@ if __name__ == '__main__':
         temp_scores_test = temp_model.temp_scale_metrics(args.task_name, vanilla_test_logits,
                                                         vanilla_results_test['gold_labels'])
         temp_scores = {"val_results": temp_scores_val, "test_results": temp_scores_test}
-        if args.dataset_name == 'mnli':
-            print('Evaluate OOD!....'.format(m))
-            temp_scores_test_ood = temp_model.temp_scale_metrics(args.task_name, vanilla_test_logits_ood,
-                                                             vanilla_results_test_ood['gold_labels'])
-            temp_scores['test_results_ood'] = temp_scores_test_ood
+        # if args.dataset_name == 'mnli':
+        #     print('Evaluate OOD!....'.format(m))
+        #     temp_scores_test_ood = temp_model.temp_scale_metrics(args.task_name, vanilla_test_logits_ood,
+        #                                                      vanilla_results_test_ood['gold_labels'])
+        #     temp_scores['test_results_ood'] = temp_scores_test_ood
         filename = 'temp_scale_results'
         if args.use_adapter: filename += '_adapter'
         if args.use_bayes_adapter: filename += '_bayes_adapter'
