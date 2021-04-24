@@ -900,6 +900,7 @@ if __name__ == '__main__':
     #########################################
     # Check if experiment already done
     #########################################
+    create_dir(RES_DIR)
     path = os.path.join(RES_DIR, '{}_{}_100%'.format(args.task_name, args.model_type))
     create_dir(path)
     name = 'seed_{}_lr_{}_bs_{}_epochs_{}'.format(args.seed, args.learning_rate,
@@ -1115,9 +1116,10 @@ if __name__ == '__main__':
                 json.dump(mc_results, f)
         # Temperature Scaling
         print('Evaluate temperature scaling....')
-        with open(dirname) as json_file:
-            results = json.load(json_file)
-            temperature = results['val_results']['temperature']
+        # with open(dirname) as json_file:
+        #     results = json.load(json_file)
+        #     temperature = results['val_results']['temperature']
+        temperature = temp_scores_val['temperature']
         temp_model = tune_temperature(test_dataset_ood, args, model, return_model_temp=True)
         temp_ood_scores = temp_model.temp_scale_metrics(args.task_name, vanilla_ood_logits,
                                                         vanilla_ood_results['gold_labels'],
