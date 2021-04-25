@@ -912,7 +912,7 @@ if __name__ == '__main__':
 
     dirname = os.path.join(path, name)
 
-    if os.path.isdir(dirname) and os.listdir(dirname) and not args.bayes_output:
+    if os.path.isdir(dirname) and os.listdir(dirname):
         print('Experiment done!')
         exit()
     create_dir(dirname)
