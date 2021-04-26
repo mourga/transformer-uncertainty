@@ -924,6 +924,8 @@ if __name__ == '__main__':
     X_val, y_val = get_glue_dataset(args, args.data_dir, args.task_name, args.model_type, evaluate=True)
     X_test, y_test = get_glue_dataset(args, args.data_dir, args.task_name, args.model_type, test=True)
 
+    # test_dataset_ood = get_glue_tensor_dataset(None, args, 'twitterppdb', tokenizer, test=True,
+    #                                            data_dir=os.path.join(DATA_DIR, 'TwitterPPDB'))
     X_orig = X_train  # original train set
     y_orig = y_train  # original labels
     X_inds = list(np.arange(len(X_orig)))  # indices to original train set
@@ -1066,8 +1068,8 @@ if __name__ == '__main__':
     if args.dataset_name == 'mnli':
         test_dataset_ood = get_glue_tensor_dataset(None, args, args.task_name, tokenizer, test=True, ood=True)
     elif args.dataset_name == 'qqp':
-        test_dataset_ood = get_glue_tensor_dataset(None, args, 'mrpc', tokenizer, test=True,
-                                                   data_dir=os.path.join(DATA_DIR, 'MRPC'))
+        # test_dataset_ood = get_glue_tensor_dataset(None, args, 'mrpc', tokenizer, test=True, data_dir=os.path.join(DATA_DIR, 'MRPC'))
+        test_dataset_ood = get_glue_tensor_dataset(None, args, 'twitterppdb', tokenizer, test=True, data_dir=os.path.join(DATA_DIR, 'TwitterPPDB'))
     elif args.dataset_name == 'mrpc':
         test_dataset_ood = get_glue_tensor_dataset(None, args, 'qqp', tokenizer, test=True,
                                                    data_dir=os.path.join(DATA_DIR, 'QQP'))

@@ -7,6 +7,7 @@ import os
 import html
 import sys
 
+from nlp import tqdm
 from transformers import glue_processors, glue_output_modes
 from transformers.file_utils import is_tf_available
 from transformers.data.processors.utils import DataProcessor, InputExample, InputFeatures
@@ -1349,6 +1350,160 @@ class ImdbProcessor(DataProcessor):
 
         return
 
+
+class TwitterPPDBProcessor(DataProcessor):
+    """Processor for the PubMed data set."""
+
+    def valid_inputs(self, sentence1, sentence2, label):
+        return len(sentence1) > 0 and len(sentence2) > 0 and label != 3
+
+    def get_example_from_tensor_dict(self, tensor_dict):
+        """See base class."""
+        return InputExample(
+            tensor_dict["idx"].numpy(),
+            tensor_dict["sentence"].numpy().decode("utf-8"),
+            None,
+            str(tensor_dict["label"].numpy()),
+        )
+
+    def _read_csv(cls, input_file, quotechar=None):
+        """Reads a tab separated value file."""
+        with open(input_file, "r", encoding="utf-8-sig") as f:
+            return list(csv.reader(f, delimiter=",", quotechar=quotechar))
+
+    def get_train_examples(self, data_dir):
+        if not os.path.isfile(os.path.join(data_dir, "train_42.json")):
+            self._train_dev_split(data_dir)
+        with open(os.path.join(data_dir, "train_42.json")) as json_file:
+            [X_train, y_train] = json.load(json_file)
+        # X, Y = [], []
+        # lines = self._read_csv(os.path.join(data_dir, "train", "train.tsv"))
+        # for line in lines[1:]:
+        #     # X.append(",".join(line[1:]).rstrip())
+        #     X.append(",".join(line[:-1]).rstrip())
+        #     # Y.append(line[0])
+        #     Y.append(line[-1])
+        train_examples = self._create_examples(zip(X_train, y_train), "train")
+        return train_examples
+
+    def get_dev_examples(self, data_dir):
+        if not os.path.isfile(os.path.join(data_dir, "dev_42.json")):
+            self._train_dev_split(data_dir)
+        with open(os.path.join(data_dir, "dev_42.json")) as json_file:
+            [X_val, y_val] = json.load(json_file)
+        dev_examples = self._create_examples(zip(X_val, y_val), "dev")
+        return dev_examples
+
+    def get_test_examples(self, data_dir):
+        if os.path.isfile(os.path.join(data_dir, "test.json")):
+            with open(os.path.join(data_dir, "test.json")) as json_file:
+                [X_test, y_test] = json.load(json_file)
+        else:
+
+            X_test, y_test = [], []
+            samples = []
+            path = os.path.join(data_dir, 'Twitter_URL_Corpus_test.txt')
+            with open(path, newline='') as f:
+                reader = csv.reader(f, delimiter='\t')
+                desc = f'loading \'{path}\''
+                for row in tqdm(reader, desc=desc):
+                    try:
+                        sentence1 = row[0]
+                        sentence2 = row[1]
+                        label = eval(row[2])[0]
+                        if self.valid_inputs(sentence1, sentence2, label):
+                            label = 0 if label < 3 else 1
+                            samples.append((sentence1, sentence2, label))
+                            X_test.append([sentence1, sentence2])
+                            y_test.append(str(label))
+                    except:
+                        pass
+            # return samples
+
+            # lines = self._read_csv(os.path.join(data_dir, "test", "test.tsv"))
+            # for line in lines[1:]:
+            #     # X.append(",".join(line[1:]).rstrip())
+            #     X_test.append(",".join(line[:-1]).rstrip())
+            #     # Y.append(line[0])
+            #     y_test.append(line[-1])
+
+            # Write the dev set into a json file (for this seed)
+            with open(os.path.join(data_dir, "test.json"), "w") as f:
+                json.dump([X_test, y_test], f)
+
+        test_examples = self._create_examples(zip(X_test, y_test), "test")
+
+        return test_examples
+
+    def get_augm_examples(self, X, y):
+        return self._create_examples(zip(X, y), "augm")
+
+    def get_labels(self):
+        """See base class."""
+        return ["0", "1"]
+
+    def _create_examples(self, lines, set_type):
+        """Creates examples for the dev set."""
+        examples = []
+        for (i, line) in enumerate(lines):
+            guid = "%s-%s" % (set_type, i)
+            if set_type == "augm":
+                if type(line) is not str:
+                    text_a = line[0][0]
+                else:
+                    text_a = line[0]
+                label = line[1]
+            else:
+                text_a = line[0][0]
+                text_b = line[0][1]
+                label = line[1]
+                # text_a, label = line
+                # if dom != -1:
+                #     label = [label, str(dom)]
+            examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+        return examples
+
+    def _train_dev_split(self, data_dir, seed=42):
+        """Splits train set into train and dev sets."""
+        X, Y = [], []
+
+        samples = []
+        path = os.path.join(data_dir, 'Twitter_URL_Corpus_train.txt')
+        with open(path, newline='') as f:
+            reader = csv.reader(f, delimiter='\t')
+            desc = f'loading \'{path}\''
+            # for row in tqdm(reader, desc=desc):
+            for row in reader:
+                try:
+                    sentence1 = row[0]
+                    sentence2 = row[1]
+                    label = eval(row[2])[0]
+                    if self.valid_inputs(sentence1, sentence2, label):
+                        label = 0 if label < 3 else 1
+                        samples.append((sentence1, sentence2, label))
+                except:
+                    pass
+        # return samples
+
+        lines = self._read_csv(os.path.join(data_dir, "train", "train.tsv"))
+        for line in lines[1:]:
+            # X.append(",".join(line[1:]).rstrip())
+            X.append(",".join(line[:-1]).rstrip())
+            # Y.append(line[0])
+            Y.append(line[-1])
+
+        X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.1, stratify=Y, random_state=seed)
+
+        # Write the train set into a json file (for this seed)
+        with open(os.path.join(data_dir, "train_{}.json".format(seed)), "w") as f:
+            json.dump([X_train, Y_train], f)
+
+        # Write the dev set into a json file (for this seed)
+        with open(os.path.join(data_dir, "dev_{}.json".format(seed)), "w") as f:
+            json.dump([X_val, Y_val], f)
+
+        return
+
 processors = {
     "cola": ColaProcessor,
     "mnli": MnliProcessor,
@@ -1363,7 +1518,8 @@ processors = {
     "trec-6": Trec6Processor,
     "ag_news": AgnewsProcessor,
     "dbpedia": DBpediaProcessor,
-    "imdb": ImdbProcessor
+    "imdb": ImdbProcessor,
+    "twitterppdb": TwitterPPDBProcessor
 }
 
 output_modes = {
@@ -1381,4 +1537,5 @@ output_modes = {
     "ag_news": "classification",
     "dbpedia": "classification",
     "imdb": "classification",
+    "twitterppdb": "classification",
 }
