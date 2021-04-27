@@ -331,6 +331,7 @@ def ece_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu
     base_temp_std = list(base_temp.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
 
     bins = list(base_vanilla.groupby('bins', as_index=False)['test_accs'].mean()['bins'])
+    if bins==[]: bins = list(bayes_vanilla.groupby('bins', as_index=False)['test_accs'].mean()['bins'])
 
     # Base
     # if not base.empty:
@@ -399,6 +400,7 @@ def ece_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu
     plt.savefig(os.path.join(path, filename + '.png'),
                 dpi=300,
                 transparent=False, bbox_inches="tight", pad_inches=0.2)
+    plt.close()
 
     return
 

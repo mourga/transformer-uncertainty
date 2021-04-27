@@ -913,8 +913,10 @@ if __name__ == '__main__':
     dirname = os.path.join(path, name)
 
     if os.path.isdir(dirname) and os.listdir(dirname):
-        print('Experiment done!')
-        exit()
+        json_file = 'vanilla_results.json' if not args.bayes_output else 'vanilla_results_bayes_output.json'
+        if os.path.isfile(os.path.join(dirname, json_file)):
+            print('Experiment done!')
+            exit()
     create_dir(dirname)
 
     #########################################
