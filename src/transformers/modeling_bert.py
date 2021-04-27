@@ -1399,12 +1399,12 @@ class BertForSequenceClassification(BertPreTrainedModel):
             self.classifier_mu = nn.Linear(config.hidden_size, config.num_labels)
             self.classifier_sigma = nn.Linear(config.hidden_size, config.num_labels)
 
-            # self.classifier_mu.weight.data.normal_(mean=0.0, std=1)
-            nn.init.xavier_uniform_(self.classifier_mu.weight, gain=1)
+            self.classifier_mu.weight.data.normal_(mean=0.0, std=1)
+            # nn.init.xavier_uniform_(self.classifier_mu.weight, gain=1)
 
             self.classifier_mu.bias.data.zero_()
-            # self.classifier_sigma.weight.data.normal_(mean=0.0, std=1)
-            nn.init.xavier_uniform_(self.classifier_sigma.weight, gain=1)
+            self.classifier_sigma.weight.data.normal_(mean=0.0, std=1)
+            # nn.init.xavier_uniform_(self.classifier_sigma.weight, gain=1)
             self.classifier_sigma.bias.data.zero_()
         else:
             self.classifier = nn.Linear(config.hidden_size, config.num_labels)

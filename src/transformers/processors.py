@@ -90,77 +90,150 @@ def convert_examples_to_features(
 
         inputs = tokenizer.encode_plus(example.text_a, example.text_b, add_special_tokens=True, max_length=max_length,
                                        truncation = True)
-        input_ids, token_type_ids = inputs["input_ids"], inputs["token_type_ids"]
+        if 'token_type_ids' in inputs:
+            input_ids, token_type_ids = inputs["input_ids"], inputs["token_type_ids"]
 
-        # The mask has 1 for real tokens and 0 for padding tokens. Only real
-        # tokens are attended to.
-        attention_mask = [1 if mask_padding_with_zero else 0] * len(input_ids)
+            # The mask has 1 for real tokens and 0 for padding tokens. Only real
+            # tokens are attended to.
+            attention_mask = [1 if mask_padding_with_zero else 0] * len(input_ids)
 
-        # Zero-pad up to the sequence length.
-        padding_length = max_length - len(input_ids)
-        if pad_on_left:
-            input_ids = ([pad_token] * padding_length) + input_ids
-            attention_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + attention_mask
-            token_type_ids = ([pad_token_segment_id] * padding_length) + token_type_ids
-        else:
-            input_ids = input_ids + ([pad_token] * padding_length)
-            attention_mask = attention_mask + ([0 if mask_padding_with_zero else 1] * padding_length)
-            token_type_ids = token_type_ids + ([pad_token_segment_id] * padding_length)
+            # Zero-pad up to the sequence length.
+            padding_length = max_length - len(input_ids)
+            if pad_on_left:
+                input_ids = ([pad_token] * padding_length) + input_ids
+                attention_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + attention_mask
+                token_type_ids = ([pad_token_segment_id] * padding_length) + token_type_ids
+            else:
+                input_ids = input_ids + ([pad_token] * padding_length)
+                attention_mask = attention_mask + ([0 if mask_padding_with_zero else 1] * padding_length)
+                token_type_ids = token_type_ids + ([pad_token_segment_id] * padding_length)
 
-        assert len(input_ids) == max_length, "Error with input length {} vs {}".format(len(input_ids), max_length)
-        assert len(attention_mask) == max_length, "Error with input length {} vs {}".format(
-            len(attention_mask), max_length
-        )
-        assert len(token_type_ids) == max_length, "Error with input length {} vs {}".format(
-            len(token_type_ids), max_length
-        )
-
-        if output_mode == "classification":
-            label = label_map[example.label]
-        elif output_mode == "regression":
-            label = float(example.label)
-        else:
-            raise KeyError(output_mode)
-
-        # if ex_index < 5:
-        #     logger.info("*** Example ***")
-        #     logger.info("guid: %s" % (example.guid))
-        #     logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-        #     logger.info("attention_mask: %s" % " ".join([str(x) for x in attention_mask]))
-        #     logger.info("token_type_ids: %s" % " ".join([str(x) for x in token_type_ids]))
-        #     logger.info("label: %s (id = %d)" % (example.label, label))
-
-        features.append(
-            InputFeatures(
-                input_ids=input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids, label=label
+            assert len(input_ids) == max_length, "Error with input length {} vs {}".format(len(input_ids), max_length)
+            assert len(attention_mask) == max_length, "Error with input length {} vs {}".format(
+                len(attention_mask), max_length
             )
-        )
+            assert len(token_type_ids) == max_length, "Error with input length {} vs {}".format(
+                len(token_type_ids), max_length
+            )
 
-    if is_tf_available() and is_tf_dataset:
+            if output_mode == "classification":
+                label = label_map[example.label]
+            elif output_mode == "regression":
+                label = float(example.label)
+            else:
+                raise KeyError(output_mode)
 
-        def gen():
-            for ex in features:
-                yield (
-                    {
-                        "input_ids": ex.input_ids,
-                        "attention_mask": ex.attention_mask,
-                        "token_type_ids": ex.token_type_ids,
-                    },
-                    ex.label,
+            # if ex_index < 5:
+            #     logger.info("*** Example ***")
+            #     logger.info("guid: %s" % (example.guid))
+            #     logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
+            #     logger.info("attention_mask: %s" % " ".join([str(x) for x in attention_mask]))
+            #     logger.info("token_type_ids: %s" % " ".join([str(x) for x in token_type_ids]))
+            #     logger.info("label: %s (id = %d)" % (example.label, label))
+
+            features.append(
+                InputFeatures(
+                    input_ids=input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids, label=label
                 )
+            )
 
-        return tf.data.Dataset.from_generator(
-            gen,
-            ({"input_ids": tf.int32, "attention_mask": tf.int32, "token_type_ids": tf.int32}, tf.int64),
-            (
-                {
-                    "input_ids": tf.TensorShape([None]),
-                    "attention_mask": tf.TensorShape([None]),
-                    "token_type_ids": tf.TensorShape([None]),
-                },
-                tf.TensorShape([]),
-            ),
-        )
+        if is_tf_available() and is_tf_dataset:
+
+            def gen():
+                for ex in features:
+                    yield (
+                        {
+                            "input_ids": ex.input_ids,
+                            "attention_mask": ex.attention_mask,
+                            "token_type_ids": ex.token_type_ids,
+                        },
+                        ex.label,
+                    )
+
+            return tf.data.Dataset.from_generator(
+                gen,
+                ({"input_ids": tf.int32, "attention_mask": tf.int32, "token_type_ids": tf.int32}, tf.int64),
+                (
+                    {
+                        "input_ids": tf.TensorShape([None]),
+                        "attention_mask": tf.TensorShape([None]),
+                        "token_type_ids": tf.TensorShape([None]),
+                    },
+                    tf.TensorShape([]),
+                ),
+            )
+        else:
+            input_ids = inputs["input_ids"]
+
+            # The mask has 1 for real tokens and 0 for padding tokens. Only real
+            # tokens are attended to.
+            attention_mask = [1 if mask_padding_with_zero else 0] * len(input_ids)
+
+            # Zero-pad up to the sequence length.
+            padding_length = max_length - len(input_ids)
+            if pad_on_left:
+                input_ids = ([pad_token] * padding_length) + input_ids
+                attention_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + attention_mask
+                # token_type_ids = ([pad_token_segment_id] * padding_length) + token_type_ids
+            else:
+                input_ids = input_ids + ([pad_token] * padding_length)
+                attention_mask = attention_mask + ([0 if mask_padding_with_zero else 1] * padding_length)
+                # token_type_ids = token_type_ids + ([pad_token_segment_id] * padding_length)
+
+            assert len(input_ids) == max_length, "Error with input length {} vs {}".format(len(input_ids), max_length)
+            assert len(attention_mask) == max_length, "Error with input length {} vs {}".format(
+                len(attention_mask), max_length
+            )
+            # assert len(token_type_ids) == max_length, "Error with input length {} vs {}".format(
+            #     len(token_type_ids), max_length
+            # )
+
+            if output_mode == "classification":
+                label = label_map[example.label]
+            elif output_mode == "regression":
+                label = float(example.label)
+            else:
+                raise KeyError(output_mode)
+
+            # if ex_index < 5:
+            #     logger.info("*** Example ***")
+            #     logger.info("guid: %s" % (example.guid))
+            #     logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
+            #     logger.info("attention_mask: %s" % " ".join([str(x) for x in attention_mask]))
+            #     logger.info("token_type_ids: %s" % " ".join([str(x) for x in token_type_ids]))
+            #     logger.info("label: %s (id = %d)" % (example.label, label))
+
+            features.append(
+                InputFeatures(
+                    input_ids=input_ids, attention_mask=attention_mask, label=label
+                )
+            )
+
+        if is_tf_available() and is_tf_dataset:
+
+            def gen():
+                for ex in features:
+                    yield (
+                        {
+                            "input_ids": ex.input_ids,
+                            "attention_mask": ex.attention_mask,
+                            "token_type_ids": ex.token_type_ids,
+                        },
+                        ex.label,
+                    )
+
+            return tf.data.Dataset.from_generator(
+                gen,
+                ({"input_ids": tf.int32, "attention_mask": tf.int32, "token_type_ids": tf.int32}, tf.int64),
+                (
+                    {
+                        "input_ids": tf.TensorShape([None]),
+                        "attention_mask": tf.TensorShape([None]),
+                        "token_type_ids": tf.TensorShape([None]),
+                    },
+                    tf.TensorShape([]),
+                ),
+            )
 
     return features
 

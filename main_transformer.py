@@ -19,8 +19,8 @@ from transformers import (
     # BertConfig,
     # BertForSequenceClassification,
     BertTokenizer,
-    DistilBertConfig,
-    DistilBertForSequenceClassification,
+    # DistilBertConfig,
+    # DistilBertForSequenceClassification,
     DistilBertTokenizer,
     FlaubertConfig,
     FlaubertForSequenceClassification,
@@ -52,6 +52,8 @@ from transformers import (
     set_seed,
 )
 
+from src.transformers.configuration_distilbert import DistilBertConfig
+from src.transformers.modeling_distilbert import DistilBertForSequenceClassification
 
 sys.path.append("../../")
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -110,7 +112,7 @@ MODEL_CLASSES = {
     # "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
     # "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
     # "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
-    # "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
+    "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
     # "albert": (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
     # "xlmroberta": (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer),
     # "flaubert": (FlaubertConfig, FlaubertForSequenceClassification, FlaubertTokenizer),
@@ -383,11 +385,6 @@ def get_glue_tensor_dataset(X_inds, args, task, tokenizer, train=False,
         ################################################################
         if X_inds is not None:
             examples = list(np.array(examples)[X_inds])
-            if hasattr(args, 'annotations_per_iteration') and hasattr(args, 'oversampling'):
-                if args.oversampling and len(examples) != len(X_inds):
-                    new_samples_inds = list(np.array(X_inds)[-args.annotations_per_iteration:])
-                    examples += list(np.array(examples)[new_samples_inds])
-                    assert len(examples) == len(X_inds)
         ################################################################
         features = convert_examples_to_features(
             examples,
@@ -418,16 +415,20 @@ def get_glue_tensor_dataset(X_inds, args, task, tokenizer, train=False,
         # Convert to Tensors and build dataset
         all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
         all_attention_mask = torch.tensor([f.attention_mask for f in features], dtype=torch.long)
-        all_token_type_ids = torch.tensor([f.token_type_ids for f in features], dtype=torch.long)
+        if features[0].token_type_ids is not None:
+            all_token_type_ids = torch.tensor([f.token_type_ids for f in features], dtype=torch.long)
         if output_mode == "classification":
             all_labels = torch.tensor([f.label for f in features], dtype=torch.long)
         elif output_mode == "regression":
             all_labels = torch.tensor([f.label for f in features], dtype=torch.float)
 
-        dataset = TensorDataset(all_input_ids, all_attention_mask, all_token_type_ids, all_labels)
+        if features[0].token_type_ids is not None:
+            dataset = TensorDataset(all_input_ids, all_attention_mask, all_token_type_ids, all_labels)
+        else:
+            dataset = TensorDataset(all_input_ids, all_attention_mask, all_labels)
 
         if X_inds is not None and augm_features is None:
-         assert len(dataset) == len(X_inds)
+         assert len(dataset) == len(X_inds), 'dataset {}, X_inds {}'.format(len(dataset), len(X_inds))
         return dataset
 
 

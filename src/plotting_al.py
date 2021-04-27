@@ -5,7 +5,7 @@ import matplotlib
 from matplotlib.backends.backend_pdf import PdfPages
 
 from src.general import create_dir
-from sys_config import AL_RES_DIR, RES_DIR
+from sys_config import AL_RES_DIR, RES_DIR, BASE_DIR
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -191,7 +191,8 @@ def al_plot(dataset, model='bert',
     if df.empty: return
 
     # Create dataframe with 100% data
-    path = os.path.join(RES_DIR, '{}_{}_100%'.format(dataset, model))
+    full_model_dir = os.path.join(BASE_DIR, 'results')
+    path = os.path.join(full_model_dir, '{}_{}_100%'.format(dataset, model))
     val_acc = []
     test_acc = []
     val_f1 = []
