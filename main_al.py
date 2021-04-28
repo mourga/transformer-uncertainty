@@ -274,7 +274,7 @@ def loop(args):
     if args.indicator == "small_config":
         args.acquisition_size = 100
         args.init_train_data = 100
-        args.budget = 2100
+        args.budget = 1100
 
     if args.indicator == "25_config":
         args.acquisition_size = round(len(X_train_original_inds) * 2 / 100)  # 2%
