@@ -526,7 +526,9 @@ def loop(args):
         # Test model on OOD test data (D_ood)
         ##############################################################
         print("\nEvaluating robustness! Start testing on OOD test set!\n")
-        if X_test_ood is not None and args.indicator == '25_config':
+        ood_test_results=None
+        # if X_test_ood is not None and args.indicator == '25_config':
+        if X_test_ood is not None:
             if args.dataset_name == 'sst-2':
                 ood_test_dataset = get_glue_tensor_dataset(None, args, 'imdb', tokenizer, test=True,
                                                            data_dir=os.path.join(DATA_DIR, 'IMDB'))
