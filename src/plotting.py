@@ -409,6 +409,9 @@ if __name__ == '__main__':
 
     # datasets = ['sst-2', 'mrpc', 'qnli', "cola", "mnli", "mnli-mm", "sts-b", "qqp", "rte", "wnli"]
     datasets = ['rte', 'mrpc', 'qnli', 'sst-2', 'mnli', 'qqp', 'trec-6', 'imdb', 'ag_news']
+    datasets = ['trec-6']
+    # models = ['bert', 'distilbert']
+    models = ['distilbert']
     # datasets = ['imdb']
 
     indicators = [[None, 'bayes_output']]#,
@@ -418,67 +421,72 @@ if __name__ == '__main__':
     for dataset in datasets:
         print(dataset)
         for ind in indicators:
-            print('Plotting uncertainty')
-            # acc + uncertainty plot
-            epochs='20' if dataset == 'trec-6' else '5'
-            uncertainty_plot(task_name=dataset,
-                             seeds=[2, 19, 729, 982, 75],
-                             learning_rate='2e-05',
-                             per_gpu_train_batch_size=32,
-                             # num_train_epochs='5',
-                             num_train_epochs=epochs,
-                             # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
-                             indicators=ind,
-                             identity_init=False)
-        #
-            # # Acc + uncertainty OOD
-            print('Plotting uncertainty OOD')
-            uncertainty_plot(task_name=dataset,
-                             seeds=[2, 19, 729, 982, 75],
-                             learning_rate='2e-05',
-                             per_gpu_train_batch_size=32,
-                             num_train_epochs='5',
-                             # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
-                             indicators=ind,
-                             ood=True)
-        #
-            print('Plotting uncertainty few shot')
-            uncertainty_plot(task_name=dataset,
-                             seeds=[2, 19, 729, 982, 75],
-                             learning_rate='2e-05',
-                             per_gpu_train_batch_size=32,
-                             num_train_epochs='5',
-                             # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
-                             indicators=ind,
-                             few_shot=True)
-        #
-        #
-        #     print('Plotting reliability diagram (vanilla)')
-        #     ece_plot(task_name=dataset,
-        #              seeds=[2, 19, 729, 982, 75],
-        #              learning_rate='2e-05',
-        #              per_gpu_train_batch_size=32,
-        #              # num_train_epochs='5',
-        #              num_train_epochs=epochs,
-        #              indicators=ind,
-        #              identity_init=False, )
+            for model in models:
+                print('Plotting uncertainty')
+                # acc + uncertainty plot
+                # epochs='20' if dataset == 'trec-6' else '5'
+                uncertainty_plot(task_name=dataset,
+                                 seeds=[2, 19, 729, 982, 75],
+                                 learning_rate='2e-05',
+                                 model_type=model,
+                                 per_gpu_train_batch_size=32,
+                                 # num_train_epochs='5',
+                                 num_train_epochs=epochs,
+                                 # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
+                                 indicators=ind,
+                                 identity_init=False)
+            #
+                # # Acc + uncertainty OOD
+                print('Plotting uncertainty OOD')
+                uncertainty_plot(task_name=dataset,
+                                 seeds=[2, 19, 729, 982, 75],
+                                 learning_rate='2e-05',
+                                 model_type=model,
+                                 per_gpu_train_batch_size=32,
+                                 num_train_epochs='5',
+                                 # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
+                                 indicators=ind,
+                                 ood=True)
+            #
+                print('Plotting uncertainty few shot')
+                uncertainty_plot(task_name=dataset,
+                                 seeds=[2, 19, 729, 982, 75],
+                                 learning_rate='2e-05',
+                                 model_type=model,
+                                 per_gpu_train_batch_size=32,
+                                 num_train_epochs='5',
+                                 # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
+                                 indicators=ind,
+                                 few_shot=True)
+            #
+            #
+            #     print('Plotting reliability diagram (vanilla)')
+            #     ece_plot(task_name=dataset,
+            #              seeds=[2, 19, 729, 982, 75],
+            #              learning_rate='2e-05',
+            #              per_gpu_train_batch_size=32,
+            #              # num_train_epochs='5',
+            #              num_train_epochs=epochs,
+            #              indicators=ind,
+            #              identity_init=False, )
 
-            print('Plotting reliability diagram (temp scale)')
-            ece_plot(task_name=dataset,
-                     seeds=[2, 19, 729, 982, 75],
-                     learning_rate='2e-05',
-                     per_gpu_train_batch_size=32,
-                     # num_train_epochs='5',
-                     num_train_epochs=epochs,
-                     indicators=ind,
-                     identity_init=False,
-                     plot_method='temp_scale')
+                print('Plotting reliability diagram (temp scale)')
+                ece_plot(task_name=dataset,
+                         seeds=[2, 19, 729, 982, 75],
+                         learning_rate='2e-05',
+                         model_type=model,
+                         per_gpu_train_batch_size=32,
+                         # num_train_epochs='5',
+                         num_train_epochs=epochs,
+                         indicators=ind,
+                         identity_init=False,
+                         plot_method='temp_scale')
 
-            # print('Plotting reliability diagram OOD (vanilla)')
-            # ece_plot(task_name=dataset,
-            #          seeds=[2, 19, 729, 982, 75, 281, 325, 195, 83, 4],
-            #          learning_rate='2e-05',
-            #          per_gpu_train_batch_size=32,
-            #          num_train_epochs='5',
-            #          indicators=ind,
-            #          ood=True, )
+                # print('Plotting reliability diagram OOD (vanilla)')
+                # ece_plot(task_name=dataset,
+                #          seeds=[2, 19, 729, 982, 75, 281, 325, 195, 83, 4],
+                #          learning_rate='2e-05',
+                #          per_gpu_train_batch_size=32,
+                #          num_train_epochs='5',
+                #          indicators=ind,
+                #          ood=True, )

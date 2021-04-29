@@ -13,10 +13,10 @@ import torch
 from sklearn.model_selection import train_test_split
 
 # from transformers import AutoTokenizer, AutoModelForSequenceClassification
-
 sys.path.append("../../")
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
+from src.temperature_scaling import tune_temperature
 from main_transformer import get_glue_dataset, get_glue_tensor_dataset, MODEL_CLASSES, train_transformer, my_evaluate
 from src.active_learning.contrast_set import contrast_acc_imdb
 from src.active_learning.uncertainty_acquisition import calculate_uncertainty
@@ -563,6 +563,11 @@ def loop(args):
             dpool_loss, logits_dpool, results_dpool = test_transformer_model(args, X_train_remaining_inds,
                                                                              model=train_results['model'])
             results_dpool.pop('gold_labels', None)
+            if args.unc=="temp":
+                eval_dataset = get_glue_tensor_dataset(X_val_inds, args, args.task_name, tokenizer, evaluate=True)
+                temp_model = tune_temperature(eval_dataset, args, train_results['model'], return_model_temp=True)
+                new_logits = temp_model.temperature_scale(logits_dpool)
+                logits_dpool = new_logits
         end = time.time()
         inference_time = end - start
 

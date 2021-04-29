@@ -89,7 +89,7 @@ class ModelWithTemperature(nn.Module):
             batch = tuple(t.to(self.device) for t in batch)
 
             with torch.no_grad():
-                inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[3]}
+                inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[-1]}
                 if self.model_type != "distilbert":
                     inputs["token_type_ids"] = (
                         batch[2] if self.model_type in ["bert", "xlnet", "albert"] else None
@@ -134,6 +134,9 @@ class ModelWithTemperature(nn.Module):
         calibration_scores.update({"temperature": float(self.temperature)})
         result.update(calibration_scores)
         return result
+
+    def new_logits(self):
+        return
 
 class _ECELoss(nn.Module):
     """

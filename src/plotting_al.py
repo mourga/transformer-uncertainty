@@ -157,7 +157,7 @@ def al_plot(dataset, model='bert',
     sns.set_style("whitegrid")
 
     # Choose path to save figure
-    dataset_dir = os.path.join(AL_RES_DIR, 'plots')
+    dataset_dir = os.path.join(AL_RES_DIR, 'plots_{}'.format(model))
     create_dir(dataset_dir)
     if plot_dir is not None:
         dataset_dir = plot_dir
@@ -192,7 +192,8 @@ def al_plot(dataset, model='bert',
 
     # Create dataframe with 100% data
     full_model_dir = os.path.join(BASE_DIR, 'results')
-    path = os.path.join(full_model_dir, '{}_{}_100%'.format(dataset, model))
+    # path = os.path.join(full_model_dir, '{}_{}_100%'.format(dataset, model))
+    path = os.path.join(RES_DIR, '{}_{}_100%'.format(dataset, model))
     val_acc = []
     test_acc = []
     val_f1 = []
@@ -310,7 +311,7 @@ def al_plot(dataset, model='bert',
 
         # fix limits
         axes = plt.gca()
-        axes.set_xlim([1, 25])
+        # axes.set_xlim([1, 25])
 
         # if dataset == 'ag_news':
         #     axes.set_ylim([90, 95])
@@ -348,8 +349,10 @@ if __name__ == '__main__':
 
     datasets = ['imdb', 'rte', 'mrpc', 'qnli', 'sst-2', 'mnli', 'qqp', 'trec-6', 'ag_news']
     seeds = [2, 19, 729, 982, 75]
-    indicator = ['25_config', '25_config_bayes']
+    indicator = ['small_config', 'small_config_bayes']
     unc = 'vanilla'
+    models = ['bert', 'distilbert']
 
     for dataset in datasets:
-        al_plot(dataset=dataset, indicator=indicator, seeds=seeds, unc=unc)
+        for model in models:
+            al_plot(dataset=dataset, indicator=indicator, seeds=seeds, unc=unc, model=model)
