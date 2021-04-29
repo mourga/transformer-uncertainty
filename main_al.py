@@ -898,7 +898,7 @@ if __name__ == '__main__':
             args.output_dir = os.path.join(args.output_dir,
                                            "{}-{}-{}".format(args.unc, args.acquisition, args.seed))
     if args.indicator is not None: args.output_dir += '-{}'.format(args.indicator)
-    if args.bayes_output is not None: args.output_dir += '-bayes'
+    if args.bayes_output: args.output_dir += '-bayes'
     print('output_dir={}'.format(args.output_dir))
     create_dir(args.output_dir)
 
