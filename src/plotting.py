@@ -135,8 +135,8 @@ def read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_
 
 def uncertainty_plot(task_name, seeds, model_type='bert', learning_rate='2e-05', per_gpu_train_batch_size=16,
                      num_train_epochs='3', indicators=None,
-                     # methods=["vanilla", "mc3", "mc5", "mc10", "mc20", "temp_scale"],
-                     methods=["vanilla", "mc3", "mc5", "mc10", "mc20"],
+                     methods=["vanilla", "mc3", "mc5", "mc10", "mc20", "temp_scale"],
+                     # methods=["vanilla", "mc3", "mc5", "mc10", "mc20"],
                      identity_init=False,
                      ood=False,
                      few_shot=False):
@@ -409,9 +409,9 @@ if __name__ == '__main__':
 
     # datasets = ['sst-2', 'mrpc', 'qnli', "cola", "mnli", "mnli-mm", "sts-b", "qqp", "rte", "wnli"]
     datasets = ['rte', 'mrpc', 'qnli', 'sst-2', 'mnli', 'qqp', 'trec-6', 'imdb', 'ag_news']
-    datasets = ['trec-6']
-    # models = ['bert', 'distilbert']
-    models = ['distilbert']
+    # datasets = ['trec-6']
+    models = ['bert', 'distilbert']
+    # models = ['distilbert']
     # datasets = ['imdb']
 
     indicators = [[None, 'bayes_output']]#,

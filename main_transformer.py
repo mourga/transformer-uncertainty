@@ -995,18 +995,6 @@ if __name__ == '__main__':
     model, tr_loss, val_loss, val_results = train_transformer(args, train_dataset, eval_dataset, model, tokenizer)
 
     #######################
-    # Test
-    #######################
-    # comment out because we do it later ("vanilla")
-    # test_results, test_logits = my_evaluate(test_dataset, args, model, prefix="", mc_samples=None)
-
-    # print('Saving json with the results....')
-    #
-    # results = {"val_results": val_results, "test_results": test_results}
-    # with open(os.path.join(dirname, 'results.json'), 'w') as f:
-    #     json.dump(results, f)
-
-    #######################
     # Test uncertainty
     #######################
     print('Evaluate uncertainty on dev & test sets....')
@@ -1016,10 +1004,6 @@ if __name__ == '__main__':
         vanilla_results_val, vanilla_val_logits = my_evaluate(eval_dataset, args, model, mc_samples=None)
         vanilla_results_test, vanilla_test_logits = my_evaluate(test_dataset, args, model, mc_samples=None)
         vanilla_results = {"val_results": vanilla_results_val, "test_results": vanilla_results_test}
-        # if args.dataset_name == 'mnli':
-        #     print('Evaluate OOD!....')
-        #     vanilla_results_test_ood, vanilla_test_logits_ood = my_evaluate(test_dataset_ood, args, model, mc_samples=None)
-        #     vanilla_results['test_results_ood'] = vanilla_results_test_ood
         filename = 'vanilla_results'
         if args.use_adapter: filename += '_adapter'
         if args.use_bayes_adapter: filename += '_bayes_adapter'
@@ -1033,10 +1017,6 @@ if __name__ == '__main__':
             mc_results_val, _ = my_evaluate(eval_dataset, args, model, mc_samples=m)
             mc_results_test, _ = my_evaluate(test_dataset, args, model, mc_samples=m)
             mc_results = {"val_results": mc_results_val, "test_results": mc_results_test}
-            # if args.dataset_name == 'mnli':
-            #     print('Evaluate OOD!....'.format(m))
-            #     mc_results_test_ood, _ = my_evaluate(test_dataset_ood, args, model, mc_samples=m)
-            #     mc_results['test_results_ood'] = mc_results_test_ood
             filename = 'mc{}_results'.format(m)
             if args.use_adapter: filename += '_adapter'
             if args.use_bayes_adapter: filename += '_bayes_adapter'
@@ -1051,12 +1031,8 @@ if __name__ == '__main__':
                                                         vanilla_results_val['gold_labels'])
         temp_scores_test = temp_model.temp_scale_metrics(args.task_name, vanilla_test_logits,
                                                         vanilla_results_test['gold_labels'])
+        temp_scores_val['temperature'] = float(temp_model.temperature)
         temp_scores = {"val_results": temp_scores_val, "test_results": temp_scores_test}
-        # if args.dataset_name == 'mnli':
-        #     print('Evaluate OOD!....'.format(m))
-        #     temp_scores_test_ood = temp_model.temp_scale_metrics(args.task_name, vanilla_test_logits_ood,
-        #                                                      vanilla_results_test_ood['gold_labels'])
-        #     temp_scores['test_results_ood'] = temp_scores_test_ood
         filename = 'temp_scale_results'
         if args.use_adapter: filename += '_adapter'
         if args.use_bayes_adapter: filename += '_bayes_adapter'
@@ -1089,11 +1065,9 @@ if __name__ == '__main__':
         test_dataset_ood = get_glue_tensor_dataset(None, args, 'rte', tokenizer, test=True,
                                                    data_dir=os.path.join(DATA_DIR, 'RTE'))
     else:
+        # return
         raise NotImplementedError
 
-        #######################
-        # Test uncertainty
-        #######################
     print('Evaluate uncertainty on dev & test sets....')
     if args.test_all_uncertainty:
         # Vanilla
@@ -1121,9 +1095,6 @@ if __name__ == '__main__':
                 json.dump(mc_results, f)
         # Temperature Scaling
         print('Evaluate temperature scaling....')
-        # with open(dirname) as json_file:
-        #     results = json.load(json_file)
-        #     temperature = results['val_results']['temperature']
         temperature = temp_scores_val['temperature']
         temp_model = tune_temperature(test_dataset_ood, args, model, return_model_temp=True)
         temp_ood_scores = temp_model.temp_scale_metrics(args.task_name, vanilla_ood_logits,

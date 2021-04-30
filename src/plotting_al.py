@@ -266,7 +266,7 @@ def al_plot(dataset, model='bert',
 
             # for d in range(1, len(val_acc)):
             for d in range(1, len(test_acc)):
-                df_all = df_all.append(pd.DataFrame({'samples': x_per, 'test_acc': test_acc[d], 'val_acc': val_acc[d]}))
+                df_all = df_all.append(pd.DataFrame({'samples': x, 'test_acc': test_acc[d], 'val_acc': val_acc[d]}))
             if legend:
                 all_ax = sns.lineplot(x="samples", y=y_plot,
                                       data=df_all, ci='sd', estimator='mean', label=label_100,
@@ -278,7 +278,7 @@ def al_plot(dataset, model='bert',
                                       color='black',
                                       linestyle='-.')
         if type(indicator) is list:
-            al_ax = sns.lineplot(x="data_percent", y=y_plot, hue="Model", style='Acquisition', data=df,
+            al_ax = sns.lineplot(x="samples", y=y_plot, hue="Model", style='Acquisition', data=df,
                                  ci='sd',
                                  # ci=None,
                                  # estimator="mean",
@@ -304,7 +304,7 @@ def al_plot(dataset, model='bert',
         #
         # plt.legend(bbox_to_anchor=(1.5, 0.5), loc='center left', ncol=2,handleheight=1, labelspacing=0.05)
         plt.tight_layout()
-        plt.legend(loc='lower right', prop={'size': 10})
+        plt.legend(loc='lower right', prop={'size': 7})
 
         for tick in ax.xaxis.get_major_ticks():
             tick.label.set_fontsize(10)
@@ -348,8 +348,9 @@ def al_plot(dataset, model='bert',
 if __name__ == '__main__':
 
     datasets = ['imdb', 'rte', 'mrpc', 'qnli', 'sst-2', 'mnli', 'qqp', 'trec-6', 'ag_news']
+    datasets = ['sst-2']
     seeds = [2, 19, 729, 982, 75]
-    indicator = ['small_config', 'small_config_bayes']
+    indicator = ['10_config', '10_config_bayes']
     unc = 'vanilla'
     models = ['bert', 'distilbert']
 
