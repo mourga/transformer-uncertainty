@@ -281,6 +281,11 @@ def loop(args):
         args.init_train_data = round(len(X_train_original_inds) * 1 / 100)  # 1%
         args.budget = round(len(X_train_original_inds) * 27 / 100)  # 25%
 
+    if args.indicator == "10_config":
+        args.acquisition_size = round(len(X_train_original_inds) * 1 / 100)  # 1%
+        args.init_train_data = round(len(X_train_original_inds) * 1 / 100)  # 1%
+        args.budget = round(len(X_train_original_inds) * 11 / 100)  # 10%
+
     # tokenizer = AutoTokenizer.from_pretrained(
     #     args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
     #     cache_dir=args.cache_dir,
