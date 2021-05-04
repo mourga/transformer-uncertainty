@@ -146,7 +146,7 @@ def read_results_json(dataset, model, af, seeds=[964, 131, 821, 12, 71],
 def al_plot(dataset, model='bert',
             af=['entropy', 'random'],
             seeds=[],
-            unc='vanilla',
+            unc=['vanilla'],
             plot_dir=None,
             indicator=None,
             y='acc',
@@ -178,8 +178,9 @@ def al_plot(dataset, model='bert',
     if type(indicator) is list:
         for i in indicator:
             for a in af:
-                _i = i
-                list_of_df.append(read_results_json(dataset, model, a, seeds, indicator=_i, unc=unc, indicator_df=True))
+                for u in unc:
+                    _i = i
+                    list_of_df.append(read_results_json(dataset, model, a, seeds, indicator=_i, unc=u, indicator_df=True))
     else:
         for a in af:
             list_of_df.append(read_results_json(dataset, model, a, seeds, indicator=indicator))
@@ -192,8 +193,8 @@ def al_plot(dataset, model='bert',
 
     # Create dataframe with 100% data
     full_model_dir = os.path.join(BASE_DIR, 'results')
-    # path = os.path.join(full_model_dir, '{}_{}_100%'.format(dataset, model))
-    path = os.path.join(RES_DIR, '{}_{}_100%'.format(dataset, model))
+    path = os.path.join(full_model_dir, '{}_{}_100%'.format(dataset, model))
+    # path = os.path.join(RES_DIR, '{}_{}_100%'.format(dataset, model))
     val_acc = []
     test_acc = []
     val_f1 = []
@@ -202,7 +203,7 @@ def al_plot(dataset, model='bert',
         if not os.path.exists(all_filepath): all_filepath = os.path.join(path,
                                                                          'seed_{}_lr_2e-05_bs_32_epochs_20'.format(
                                                                              seed))
-        if os.path.exists(all_filepath):
+        if os.path.exists(all_filepath) and os.path.isfile(os.path.join(all_filepath, 'vanilla_results.json')):
             with open(os.path.join(all_filepath, 'vanilla_results.json')) as json_file:
                 results = json.load(json_file)
                 val_acc.append(results['val_results']['acc'] * 100)
@@ -266,19 +267,22 @@ def al_plot(dataset, model='bert',
 
             # for d in range(1, len(val_acc)):
             for d in range(1, len(test_acc)):
-                df_all = df_all.append(pd.DataFrame({'samples': x, 'test_acc': test_acc[d], 'val_acc': val_acc[d]}))
+                df_all = df_all.append(pd.DataFrame({'data_percent': x_per, 'test_acc': test_acc[d], 'val_acc': val_acc[d]}))
             if legend:
-                all_ax = sns.lineplot(x="samples", y=y_plot,
+                all_ax = sns.lineplot(x="data_percent", y=y_plot,
                                       data=df_all, ci='sd', estimator='mean', label=label_100,
                                       color='black',
                                       linestyle='-.', legend=False)
             else:
-                all_ax = sns.lineplot(x="samples", y=y_plot,
+                all_ax = sns.lineplot(x="data_percent", y=y_plot,
                                       data=df_all, ci='sd', estimator='mean', label=label_100,
                                       color='black',
                                       linestyle='-.')
         if type(indicator) is list:
-            al_ax = sns.lineplot(x="samples", y=y_plot, hue="Model", style='Acquisition', data=df,
+            al_ax = sns.lineplot(x="data_percent", y=y_plot, hue="Model",
+                                 # style='Acquisition',
+                                 style='unc',
+                                 data=df,
                                  ci='sd',
                                  # ci=None,
                                  # estimator="mean",
@@ -287,7 +291,7 @@ def al_plot(dataset, model='bert',
                                  # palette=sns.color_palette("rocket",3)
                                  )
 
-        plt.xlabel('Acquired dataset size (%)', fontsize=15)
+        plt.xlabel('Acquired samples', fontsize=15)
         plt.ylabel('Accuracy', fontsize=15)
 
         if ood:
@@ -351,7 +355,7 @@ if __name__ == '__main__':
     datasets = ['sst-2']
     seeds = [2, 19, 729, 982, 75]
     indicator = ['10_config', '10_config_bayes']
-    unc = 'vanilla'
+    unc = ['vanilla', 'mc5', 'temp']
     models = ['bert', 'distilbert']
 
     for dataset in datasets:
