@@ -574,7 +574,7 @@ def loop(args):
                 eval_dataset = get_glue_tensor_dataset(X_val_inds, args, args.task_name, tokenizer, evaluate=True)
                 temp_model = tune_temperature(eval_dataset, args, train_results['model'], return_model_temp=True)
                 new_logits = temp_model.temperature_scale(logits_dpool)
-                logits_dpool = new_logits
+                logits_dpool = new_logits.detach()
         end = time.time()
         inference_time = end - start
 
