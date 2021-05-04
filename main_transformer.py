@@ -914,7 +914,7 @@ if __name__ == '__main__':
     dirname = os.path.join(path, name)
 
     if os.path.isdir(dirname) and os.listdir(dirname):
-        json_file = 'vanilla_results.json' if not args.bayes_output else 'vanilla_results_bayes_output.json'
+        json_file = 'temp_scale_results.json' if not args.bayes_output else 'temp_scale_results_bayes_output.json'
         if os.path.isfile(os.path.join(dirname, json_file)):
             print('Experiment done!')
             exit()
