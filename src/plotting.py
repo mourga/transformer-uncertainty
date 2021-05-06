@@ -643,7 +643,7 @@ def reliability_diagram(datasets, models, indicators, seeds=[2, 19, 729, 982, 75
 if __name__ == '__main__':
     # datasets = ['sst-2', 'mrpc', 'qnli', "cola", "mnli", "mnli-mm", "sts-b", "qqp", "rte", "wnli"]
     datasets = ['rte', 'mrpc', 'qnli', 'sst-2', 'mnli', 'qqp', 'trec-6', 'imdb', 'ag_news']
-    datasets = ['rte', 'trec-6']
+    # datasets = ['rte', 'trec-6']
     models = ['bert', 'distilbert']
     # models = ['distilbert']
     # datasets = ['imdb']
@@ -671,10 +671,10 @@ if __name__ == '__main__':
         per_dataset=True
     )
 
-    # for dataset in datasets:
-    #     print(dataset)
-    #     for ind in indicators:
-    #         for model in models:
+    for dataset in datasets:
+        print(dataset)
+        for ind in indicators:
+            for model in models:
     #             print('Plotting uncertainty')
     #             # acc + uncertainty plot
     #             # epochs='20' if dataset == 'trec-6' else '5'
@@ -689,17 +689,17 @@ if __name__ == '__main__':
     #                              indicators=ind,
     #                              identity_init=False)
     #             #
-    #             # # Acc + uncertainty OOD
-    #             print('Plotting uncertainty OOD')
-    #             uncertainty_plot(task_name=dataset,
-    #                              seeds=[2, 19, 729, 982, 75],
-    #                              learning_rate='2e-05',
-    #                              model_type=model,
-    #                              per_gpu_train_batch_size=32,
-    #                              num_train_epochs='5',
-    #                              # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
-    #                              indicators=ind,
-    #                              ood=True)
+                # # Acc + uncertainty OOD
+                print('Plotting uncertainty OOD')
+                uncertainty_plot(task_name=dataset,
+                                 seeds=[2, 19, 729, 982, 75],
+                                 learning_rate='2e-05',
+                                 model_type=model,
+                                 per_gpu_train_batch_size=32,
+                                 num_train_epochs='5',
+                                 # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
+                                 indicators=ind,
+                                 ood=True)
     #             #
     #             print('Plotting uncertainty few shot')
     #             uncertainty_plot(task_name=dataset,

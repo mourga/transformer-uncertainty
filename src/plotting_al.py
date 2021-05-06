@@ -157,7 +157,7 @@ def al_plot(dataset, model='bert',
     sns.set_style("whitegrid")
 
     # Choose path to save figure
-    dataset_dir = os.path.join(AL_RES_DIR, 'plots_{}'.format(model))
+    dataset_dir = os.path.join(BASE_DIR, 'paper_results')
     create_dir(dataset_dir)
     if plot_dir is not None:
         dataset_dir = plot_dir
@@ -178,9 +178,15 @@ def al_plot(dataset, model='bert',
     if type(indicator) is list:
         for i in indicator:
             for a in af:
-                for u in unc:
-                    _i = i
-                    list_of_df.append(read_results_json(dataset, model, a, seeds, indicator=_i, unc=u, indicator_df=True))
+                if a=='random' and 'bayes' in i:
+                    pass
+                else:
+                    for u in unc:
+                        if 'bayes' in i and u == 'temp':
+                            pass
+                        else:
+                            _i = i
+                            list_of_df.append(read_results_json(dataset, model, a, seeds, indicator=_i, unc=u, indicator_df=True))
     else:
         for a in af:
             list_of_df.append(read_results_json(dataset, model, a, seeds, indicator=indicator))
@@ -279,9 +285,21 @@ def al_plot(dataset, model='bert',
                                       color='black',
                                       linestyle='-.')
         if type(indicator) is list:
-            al_ax = sns.lineplot(x="data_percent", y=y_plot, hue="Model",
-                                 # style='Acquisition',
-                                 style='unc',
+            df['_method'] = df.Model+df.unc
+            crap2name={'10_config_bayesmc5': 'Bayes+MC',
+                       '10_configmc5': 'MC',
+                       '10_config_bayestemp': 'Bayes+TS',
+                       '10_configtemp': 'Temperature Scaling',
+                       '10_config_bayesvanilla': 'Bayes',
+                       '10_configvanilla': 'Vanilla',
+            }
+            df['Method'] = [crap2name[x] for x in df['_method']]
+            # df.drop(df[(df['Acquisition'] == 'random') & (df['Method'] != 'Vanilla')])
+            # df = df.drop(df[(df['Acquisition'] == 'random') & (df['Method'] != 'Vanilla')].index)
+            al_ax = sns.lineplot(x="data_percent", y=y_plot,
+                                 hue="Method",
+                                 style='Acquisition',
+                                 # style='unc',
                                  data=df,
                                  ci='sd',
                                  # ci=None,
@@ -315,7 +333,7 @@ def al_plot(dataset, model='bert',
 
         # fix limits
         axes = plt.gca()
-        # axes.set_xlim([1, 25])
+        axes.set_xlim([1, 10])
 
         # if dataset == 'ag_news':
         #     axes.set_ylim([90, 95])
@@ -352,7 +370,7 @@ def al_plot(dataset, model='bert',
 if __name__ == '__main__':
 
     datasets = ['imdb', 'rte', 'mrpc', 'qnli', 'sst-2', 'mnli', 'qqp', 'trec-6', 'ag_news']
-    datasets = ['sst-2']
+    datasets = ['sst-2', 'ag_news']
     seeds = [2, 19, 729, 982, 75]
     indicator = ['10_config', '10_config_bayes']
     unc = ['vanilla', 'mc5', 'temp']
