@@ -11,7 +11,7 @@ available_datasets = glue_datasets + ["ag_news", "trec-6", "dbpedia", "imdb", "p
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-CKPT_DIR = os.path.join(BASE_DIR, "checkpoints")
+CKPT_DIR = os.path.join(BASE_DIR, "/jmain01/home/JAD009/txk20/shared/transformer-uncertainty-george/checkpoints")
 
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 
@@ -22,7 +22,7 @@ IMDB_CONTR_DATA_DIR = os.path.join(CONTR_DATA_DIR, 'IMDb', 'data')
 CACHE_DIR = os.path.join(BASE_DIR, 'cache')
 
 # RES_DIR = os.path.join(BASE_DIR, 'results')
-RES_DIR = os.path.join(BASE_DIR, 'resultsss')
+RES_DIR = os.path.join(BASE_DIR, "/jmain01/home/JAD009/txk20/shared/transformer-uncertainty-george/resultsss")
 
 AL_RES_DIR = os.path.join(BASE_DIR, 'resultsss_al')
 
