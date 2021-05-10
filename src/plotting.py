@@ -654,11 +654,11 @@ if __name__ == '__main__':
     epochs = '5'
 
     # # (1) ID & ECE TABLE
-    # ac_ece_table(
-    #     datasets=['imdb', 'sst-2', 'ag_news', 'trec-6', 'qqp', 'mrpc', 'qnli', 'mnli', 'rte'],
-    #     models=['bert', 'distilbert'],
-    #     indicators=[None, 'bayes_output']
-    # )
+    ac_ece_table(
+        datasets=['imdb', 'sst-2', 'ag_news', 'trec-6', 'qqp', 'mrpc', 'qnli', 'mnli', 'rte'],
+        models=['bert', 'distilbert'],
+        indicators=[None, 'bayes_output']
+    )
 
     # (2) Distil reliability diagram per method
     reliability_diagram(
