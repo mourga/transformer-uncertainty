@@ -541,6 +541,9 @@ def ac_ece_table(datasets, models, indicators, seeds=[2, 19, 729, 982, 75],
     create_dir(path)
     df_table.to_csv(os.path.join(path, 'ac_ece_id.csv'),
                     columns=['imdb', 'sst-2', 'ag_news', 'trec-6', 'qqp', 'mrpc', 'qnli', 'mnli', 'rte', 'avg'])
+
+    df_table.to_latex(os.path.join(path, 'ac_ece_id.tex'),
+                    columns=['imdb', 'sst-2', 'ag_news', 'trec-6', 'qqp', 'mrpc', 'qnli', 'mnli', 'rte', 'avg'])
     
     return
 
