@@ -4,6 +4,11 @@ import sys
 
 import matplotlib
 
+
+sys.path.append("../../")
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
+
 from src.general import create_dir
 from sys_config import RES_DIR, BASE_DIR
 
@@ -12,10 +17,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
-
-sys.path.append("../../")
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-
 
 def read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_train_epochs,
                       indicators, methods, task_name, identity_init=False, ece=False,
@@ -451,21 +452,88 @@ def ac_ece_table(datasets, models, indicators, seeds=[2, 19, 729, 982, 75],
     # df['model_unc'] = df.apply(lambda row: row.indicator + '+' + row.method, axis=1)
 
     # ID + ECE Vanilla
-    df_vanilla = df[df['method'] == 'vanilla']
+
+    # df_vanilla = df[df['method'] == 'vanilla']
+    methods = ['vanilla', 'mc5', 'mc20' , 'temp_scale']
+    df_vanilla = df[df['method'].isin(methods)]
+
     df_model = df_vanilla[df_vanilla['indicator'] == 'Base']
 
+    df_bay_model = df_vanilla[df_vanilla['indicator'] == 'BayesOutput']
+    df_bay_model = df_bay_model[df_bay_model.method.isin(["vanilla" ,"mc20"])]
+
     df_table = pd.DataFrame(columns=list(set(df_model.dataset)),
-                            index=['bert_acc', 'distilbert_acc', 'bert_ece', 'distilbert_ece'])
+                            index=['bert_acc', 'distilbert_acc', 
+                            'bert_ece|vanilla', 'distilbert_ece|vanilla',
+                            'bert_ece|mc5', 'distilbert_ece|mc5',
+                            'bert_ece|mc20', 'distilbert_ece|mc20',
+                            'bert_ece|temp_scale', 'distilbert_ece|temp_scale',
+                            'bert_ece|bayes-vanilla', 'distilbert_ece|bayes-vanilla',
+                            'bert_ece|bayes-mc20', 'distilbert_ece|bayes-mc20'])
+    
     for dataset in list(set(df_model.dataset)):
         df_dataset = df_model[df_model['dataset'] == dataset]
+        df_bayset = df_bay_model[df_bay_model["dataset"] == dataset]
         bert_acc = df_dataset[df_dataset['model_type'] == 'bert']['test_acc'].mean()
-        bert_ece = df_dataset[df_dataset['model_type'] == 'bert']['test_ece'].mean()
+        # bert_ece = df_dataset[df_dataset['model_type'] == 'bert']['test_ece'].mean()
+        bert_ece = df_dataset[df_dataset["model_type"] == "bert"].groupby("method").mean()["test_ece"].round(3) 
+        bert_bay_ece =  df_bayset[df_bayset["model_type"] == "bert"].groupby("method").mean()["test_ece"].round(3) 
         distilbert_acc = df_dataset[df_dataset['model_type'] == 'distilbert']['test_acc'].mean()
-        distilbert_ece = df_dataset[df_dataset['model_type'] == 'distilbert']['test_ece'].mean()
+        # distilbert_ece = df_dataset[df_dataset['model_type'] == 'distilbert']['test_ece'].mean()
+        distilbert_ece = df_dataset[df_dataset["model_type"] == "distilbert"].groupby("method").mean()["test_ece"].round(3)
+        distilbert_bay_ece =  df_bayset[df_bayset["model_type"] == "distilbert"].groupby("method").mean()["test_ece"].round(3) 
         df_table[dataset]['bert_acc'] = round(bert_acc, 3) * 100.
-        df_table[dataset]['bert_ece'] = round(bert_ece, 3)
+        # df_table[dataset]['bert_ece'] = round(bert_ece, 3)
         df_table[dataset]['distilbert_acc'] = round(distilbert_acc, 3) * 100.
-        df_table[dataset]['distilbert_ece'] = round(distilbert_ece, 3)
+        # df_table[dataset]['distilbert_ece'] = round(distilbert_ece, 3)
+
+        mapper = {        
+            "bert_ece" : bert_ece,
+            "distilbert_ece" : distilbert_ece,
+            "bert_ece|bayes" : bert_bay_ece,
+            "distilbert_ece|bayes": distilbert_bay_ece
+        }
+
+        ## go through the index
+        for indx in df_table.index: 
+            
+            ## find first non-bayes out
+            if "ece" in indx and "bayes" not in indx: 
+                
+                ## find model
+                mod = indx.split("|")[0]
+                ## find method
+                meth = indx.split("|")[1]
+
+                ## map the result to the df_table appropriate index if it exists
+                try:
+
+                    local_res = mapper[mod][meth]
+
+                    df_table[dataset][indx] = local_res
+                
+                except:
+                    ### else place nan and print out the problem    
+                    df_table[dataset][indx] = np.nan
+
+                    print("--- results not available yet for dataset : {} -- model {} -- method {}".format(
+                        dataset,
+                        mod,
+                        meth
+                        ))
+
+            ## now for the bayes ones
+            if "bayes" in indx:
+
+                ## find model
+                mod = indx.split("-")[0]
+                ## find method
+                meth = indx.split("-")[1]
+
+                ## map result to df_table
+                local_res = mapper[mod][meth]
+
+                df_table[dataset][indx] = local_res
 
     df_table["avg"] = round(df_table.mean(1), 3)
     print()
@@ -473,6 +541,7 @@ def ac_ece_table(datasets, models, indicators, seeds=[2, 19, 729, 982, 75],
     create_dir(path)
     df_table.to_csv(os.path.join(path, 'ac_ece_id.csv'),
                     columns=['imdb', 'sst-2', 'ag_news', 'trec-6', 'qqp', 'mrpc', 'qnli', 'mnli', 'rte', 'avg'])
+    
     return
 
 
