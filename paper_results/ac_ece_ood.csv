@@ -1,0 +1,5 @@
+,vanilla,temp_scale,mc5,ua+mc-5
+bert_acc,0.864,0.814,0.863,0.864
+distilbert_acc,0.845,0.841,0.841,0.851
+bert_ece,0.05,0.078,0.04,0.042
+distilbert_ece,0.046,0.059,0.049,0.048

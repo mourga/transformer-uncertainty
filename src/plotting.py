@@ -460,90 +460,130 @@ def ac_ece_table(datasets, models, indicators, seeds=[2, 19, 729, 982, 75],
     df_model = df_vanilla[df_vanilla['indicator'] == 'Base']
 
     df_bay_model = df_vanilla[df_vanilla['indicator'] == 'BayesOutput']
-    df_bay_model = df_bay_model[df_bay_model.method.isin(["vanilla" ,"mc20"])]
+    df_bay_model = df_bay_model[df_bay_model.method.isin(["vanilla" ,"mc5"])]
 
-    df_table = pd.DataFrame(columns=list(set(df_model.dataset)),
-                            index=['bert_acc', 'distilbert_acc', 
-                            'bert_ece|vanilla', 'distilbert_ece|vanilla',
-                            'bert_ece|mc5', 'distilbert_ece|mc5',
-                            'bert_ece|mc20', 'distilbert_ece|mc20',
-                            'bert_ece|temp_scale', 'distilbert_ece|temp_scale',
-                            'bert_ece|bayes-vanilla', 'distilbert_ece|bayes-vanilla',
-                            'bert_ece|bayes-mc20', 'distilbert_ece|bayes-mc20'])
-    
-    for dataset in list(set(df_model.dataset)):
-        df_dataset = df_model[df_model['dataset'] == dataset]
-        df_bayset = df_bay_model[df_bay_model["dataset"] == dataset]
-        bert_acc = df_dataset[df_dataset['model_type'] == 'bert']['test_acc'].mean()
-        # bert_ece = df_dataset[df_dataset['model_type'] == 'bert']['test_ece'].mean()
-        bert_ece = df_dataset[df_dataset["model_type"] == "bert"].groupby("method").mean()["test_ece"].round(3) 
-        bert_bay_ece =  df_bayset[df_bayset["model_type"] == "bert"].groupby("method").mean()["test_ece"].round(3) 
-        distilbert_acc = df_dataset[df_dataset['model_type'] == 'distilbert']['test_acc'].mean()
-        # distilbert_ece = df_dataset[df_dataset['model_type'] == 'distilbert']['test_ece'].mean()
-        distilbert_ece = df_dataset[df_dataset["model_type"] == "distilbert"].groupby("method").mean()["test_ece"].round(3)
-        distilbert_bay_ece =  df_bayset[df_bayset["model_type"] == "distilbert"].groupby("method").mean()["test_ece"].round(3) 
-        df_table[dataset]['bert_acc'] = round(bert_acc, 3) * 100.
-        # df_table[dataset]['bert_ece'] = round(bert_ece, 3)
-        df_table[dataset]['distilbert_acc'] = round(distilbert_acc, 3) * 100.
-        # df_table[dataset]['distilbert_ece'] = round(distilbert_ece, 3)
+    if ood:
+        df_table = pd.DataFrame(columns=["vanilla", "temp_scale", "mc-5", "ua+mc-5"],
+                                index=['bert_acc', 'distilbert_acc',
+                                'bert_ece', 'distilbert_ece'])
+        method_dict = {"vanilla":None, "temp_scale": None, "mc5":None, "ua+mc-5":None}
+        methods=['vanilla', 'mc5', 'temp_scale']
+        for method in methods:
+            # Base model
+            df_base = df_model[df_model['method'] == method]
+            df_base_bert = df_base[df_base['model_type'] == 'bert']
+            df_base_distilbert = df_base[df_base['model_type'] == 'distilbert']
 
-        mapper = {        
-            "bert_ece" : bert_ece,
-            "distilbert_ece" : distilbert_ece,
-            "bert_ece|bayes" : bert_bay_ece,
-            "distilbert_ece|bayes": distilbert_bay_ece
-        }
+            # UA model
+            if method=='mc5':
+                df_bayset = df_bay_model[df_bay_model["method"] == method]
+                df_bayes_bert = df_bayset[df_bayset['model_type'] == 'bert']
+                df_bayes_distilbert = df_bayset[df_bayset['model_type'] == 'distilbert']
 
-        ## go through the index
-        for indx in df_table.index: 
-            
-            ## find first non-bayes out
-            if "ece" in indx and "bayes" not in indx: 
-                
-                ## find model
-                mod = indx.split("|")[0]
-                ## find method
-                meth = indx.split("|")[1]
+            bert_acc = df_base_bert['test_acc'].mean()
+            distilbert_acc = df_base_distilbert['test_acc'].mean()
+            bert_ece = df_base_bert['test_ece'].mean()
+            distilbert_ece = df_base_distilbert['test_ece'].mean()
 
-                ## map the result to the df_table appropriate index if it exists
-                try:
+            method_dict[method] = [bert_acc, distilbert_acc, bert_ece, distilbert_ece]
+            if method == "mc5":
+                method_dict['ua+mc-5'] = [df_bayes_bert['test_acc'].mean(),
+                                          df_bayes_distilbert['test_acc'].mean(),
+                                          df_bayes_bert['test_ece'].mean(),
+                                          df_bayes_distilbert['test_ece'].mean()]
 
+        df_table = pd.DataFrame(data=method_dict, index=['bert_acc', 'distilbert_acc', 'bert_ece', 'distilbert_ece']).round(3)
+        # df_table.to_csv()
+        path = os.path.join(BASE_DIR, 'paper_results')
+        create_dir(path)
+        df_table.to_csv(os.path.join(path, 'ac_ece_ood.csv'))
+
+        df_table.to_latex(os.path.join(path, 'ac_ece_ood.tex'))
+    else:
+        df_table = pd.DataFrame(columns=list(set(df_model.dataset)),
+                                index=['bert_acc', 'distilbert_acc',
+                                'bert_ece|vanilla', 'distilbert_ece|vanilla',
+                                'bert_ece|mc5', 'distilbert_ece|mc5',
+                                'bert_ece|mc20', 'distilbert_ece|mc20',
+                                'bert_ece|temp_scale', 'distilbert_ece|temp_scale',
+                                'bert_ece|bayes-vanilla', 'distilbert_ece|bayes-vanilla',
+                                'bert_ece|bayes-mc5', 'distilbert_ece|bayes-mc5'])
+
+        for dataset in list(set(df_model.dataset)):
+            df_dataset = df_model[df_model['dataset'] == dataset]
+            df_bayset = df_bay_model[df_bay_model["dataset"] == dataset]
+            # bert_acc = df_dataset[df_dataset['model_type'] == 'bert']['test_acc'].mean()
+            bert_acc = df_dataset[(df_dataset['model_type'] == 'bert') & (df_dataset['method'] == 'vanilla') ]['test_acc'].mean()
+            # bert_ece = df_dataset[df_dataset['model_type'] == 'bert']['test_ece'].mean()
+            bert_ece = df_dataset[df_dataset["model_type"] == "bert"].groupby("method").mean()["test_ece"].round(4)
+            bert_bay_ece =  df_bayset[df_bayset["model_type"] == "bert"].groupby("method").mean()["test_ece"].round(4)
+            # distilbert_acc = df_dataset[df_dataset['model_type'] == 'distilbert']['test_acc'].mean()
+            distilbert_acc = df_dataset[(df_dataset['model_type'] == 'distilbert') & (df_dataset['method'] == 'vanilla') ]['test_acc'].mean()
+            # distilbert_ece = df_dataset[df_dataset['model_type'] == 'distilbert']['test_ece'].mean()
+            distilbert_ece = df_dataset[df_dataset["model_type"] == "distilbert"].groupby("method").mean()["test_ece"].round(4)
+            distilbert_bay_ece =  df_bayset[df_bayset["model_type"] == "distilbert"].groupby("method").mean()["test_ece"].round(4)
+            df_table[dataset]['bert_acc'] = round(bert_acc, 3) * 100.
+            # df_table[dataset]['bert_ece'] = round(bert_ece, 3)
+            df_table[dataset]['distilbert_acc'] = round(distilbert_acc, 3) * 100.
+            # df_table[dataset]['distilbert_ece'] = round(distilbert_ece, 3)
+
+            mapper = {
+                "bert_ece" : bert_ece,
+                "distilbert_ece" : distilbert_ece,
+                "bert_ece|bayes" : bert_bay_ece,
+                "distilbert_ece|bayes": distilbert_bay_ece
+            }
+
+            ## go through the index
+            for indx in df_table.index:
+
+                ## find first non-bayes out
+                if "ece" in indx and "bayes" not in indx:
+
+                    ## find model
+                    mod = indx.split("|")[0]
+                    ## find method
+                    meth = indx.split("|")[1]
+
+                    ## map the result to the df_table appropriate index if it exists
+                    try:
+
+                        local_res = mapper[mod][meth]
+
+                        df_table[dataset][indx] = local_res * 100
+
+                    except:
+                        ### else place nan and print out the problem
+                        df_table[dataset][indx] = np.nan
+
+                        print("--- results not available yet for dataset : {} -- model {} -- method {}".format(
+                            dataset,
+                            mod,
+                            meth
+                            ))
+
+                ## now for the bayes ones
+                if "bayes" in indx:
+
+                    ## find model
+                    mod = indx.split("-")[0]
+                    ## find method
+                    meth = indx.split("-")[1]
+
+                    ## map result to df_table
                     local_res = mapper[mod][meth]
 
-                    df_table[dataset][indx] = local_res
-                
-                except:
-                    ### else place nan and print out the problem    
-                    df_table[dataset][indx] = np.nan
+                    df_table[dataset][indx] = local_res * 100
 
-                    print("--- results not available yet for dataset : {} -- model {} -- method {}".format(
-                        dataset,
-                        mod,
-                        meth
-                        ))
+        df_table["avg"] = round(df_table.mean(1), 2)
+        print()
+        path = os.path.join(BASE_DIR, 'paper_results')
+        create_dir(path)
+        df_table.to_csv(os.path.join(path, 'ac_ece_id.csv'),
+                        columns=['imdb', 'sst-2', 'ag_news', 'trec-6', 'qqp', 'mrpc', 'qnli', 'mnli', 'rte', 'avg'])
 
-            ## now for the bayes ones
-            if "bayes" in indx:
-
-                ## find model
-                mod = indx.split("-")[0]
-                ## find method
-                meth = indx.split("-")[1]
-
-                ## map result to df_table
-                local_res = mapper[mod][meth]
-
-                df_table[dataset][indx] = local_res
-
-    df_table["avg"] = round(df_table.mean(1), 3)
-    print()
-    path = os.path.join(BASE_DIR, 'paper_results')
-    create_dir(path)
-    df_table.to_csv(os.path.join(path, 'ac_ece_id.csv'),
-                    columns=['imdb', 'sst-2', 'ag_news', 'trec-6', 'qqp', 'mrpc', 'qnli', 'mnli', 'rte', 'avg'])
-
-    df_table.to_latex(os.path.join(path, 'ac_ece_id.tex'),
-                    columns=['imdb', 'sst-2', 'ag_news', 'trec-6', 'qqp', 'mrpc', 'qnli', 'mnli', 'rte', 'avg'])
+        df_table.to_latex(os.path.join(path, 'ac_ece_id.tex'),
+                        columns=['imdb', 'sst-2', 'ag_news', 'trec-6', 'qqp', 'mrpc', 'qnli', 'mnli', 'rte', 'avg'])
     
     return
 
@@ -654,7 +694,8 @@ def reliability_diagram(datasets, models, indicators, seeds=[2, 19, 729, 982, 75
 
         path = os.path.join(BASE_DIR, 'paper_results')
         create_dir(path)
-        plt.savefig(os.path.join(path, 'reliability_per_method.png'),
+        filename = 'reliability_per_method_ood' if ood else 'reliability_per_method'
+        plt.savefig(os.path.join(path, '{}.png'.format(filename)),
                     dpi=300,
                     transparent=False, bbox_inches="tight", pad_inches=0.2)
         plt.close()
@@ -666,7 +707,14 @@ def reliability_diagram(datasets, models, indicators, seeds=[2, 19, 729, 982, 75
                          'BayesOutput + mc5': 'C4',
                          'BayesOutput + temp_scale': 'C5',
                          }
-        fig, axs = plt.subplots(1, len(datasets), sharey=True, figsize=(10, 2))
+        method2figname = {'Base + vanilla': 'Vanilla',
+                          'Base + temp_scale': 'Temp.Sc.',
+                         'Base + mc5': 'MC-5',
+                         'BayesOutput + vanilla': 'UA',
+                         'BayesOutput + mc5': 'UA+MC-5',
+                         'BayesOutput + temp_scale': '-',
+                         }
+        fig, axs = plt.subplots(1, len(datasets), sharey=True, figsize=(7, 2))
 
         for i, ax in enumerate(axs):
             dataset=datasets[i]
@@ -680,22 +728,22 @@ def reliability_diagram(datasets, models, indicators, seeds=[2, 19, 729, 982, 75
                 ax.set_ylabel('Accuracy', fontsize=7)
             ax.tick_params(axis='both', which='major', labelsize=7)
             ax.tick_params(axis='both', which='minor', labelsize=7)
-            ax.set_title(dataset, fontsize=7)
+            ax.set_title(dataset.upper(), fontsize=7)
             # diagonal
             ax.plot(np.arange(0, 1.2, 0.2), np.arange(0, 1.2, 0.2), color='black', ls='--')
             data = df_distil[df_distil['dataset'] == dataset]
             data['model_unc'] = data.apply(lambda row: row.indicator + ' + ' + row.method, axis=1)
 
-            skip = ["mc3", "mc10", "mc20"]
+            skip = ["mc3", "mc10", "mc20", 'BayesOutput + temp_scale']
             uncertainty_methods = [x for x in set(data['model_unc']) if not any(y in x for y in skip)]
             # plot per method
-            for method in uncertainty_methods:
+            for method in [x for x in method2figname.keys() if not any(y in x for y in skip)]:#uncertainty_methods:
                 _data = data[data["model_unc"] == method]
                 bins = list(_data.groupby('bins', as_index=False)['test_accs'].mean()['bins'])
                 mean = list(_data.groupby('bins', as_index=False)['test_accs'].mean()['test_accs'])
                 std = list(_data.groupby('bins', as_index=False)['test_accs'].std()['test_accs'])
                 ax.errorbar(bins, mean, std, ls='-', color=method2color[method],
-                            label=method,
+                            label=method2figname[method],
                             marker='o',
                             markersize=2,
                             linewidth=1,
@@ -705,7 +753,8 @@ def reliability_diagram(datasets, models, indicators, seeds=[2, 19, 729, 982, 75
 
         path = os.path.join(BASE_DIR, 'paper_results')
         create_dir(path)
-        plt.savefig(os.path.join(path, 'reliability_per_dataset.png'),
+        filename = 'reliability_per_dataset_ood' if ood else 'reliability_per_dataset'
+        plt.savefig(os.path.join(path, '{}.png'.format(filename)),
                     dpi=300,
                     transparent=False, bbox_inches="tight", pad_inches=0.2)
         plt.close()
@@ -725,55 +774,66 @@ if __name__ == '__main__':
 
     epochs = '5'
 
-    # # (1) ID & ECE TABLE
+    # # # # (1) ID & ECE TABLE
     ac_ece_table(
         datasets=['imdb', 'sst-2', 'ag_news', 'trec-6', 'qqp', 'mrpc', 'qnli', 'mnli', 'rte'],
         models=['bert', 'distilbert'],
         indicators=[None, 'bayes_output']
     )
 
-    # (2) Distil reliability diagram per method
-    reliability_diagram(
-        # datasets=['imdb', 'sst-2'],
-        datasets=['imdb', 'sst-2', 'ag_news', 'trec-6', ],
-        # 'qqp', 'mrpc', 'qnli', 'mnli', 'rte'],
+    # # # (1) OOD & ECE TABLE
+    ac_ece_table(
+        datasets=['imdb', 'qqp', 'mnli',],
         models=['bert', 'distilbert'],
         indicators=[None, 'bayes_output'],
-        per_method=False,
-        per_dataset=True
+        ood=True
     )
 
-    for dataset in datasets:
-        print(dataset)
-        for ind in indicators:
-            for model in models:
-    #             print('Plotting uncertainty')
-    #             # acc + uncertainty plot
-    #             # epochs='20' if dataset == 'trec-6' else '5'
-    #             uncertainty_plot(task_name=dataset,
-    #                              seeds=[2, 19, 729, 982, 75],
-    #                              learning_rate='2e-05',
-    #                              model_type=model,
-    #                              per_gpu_train_batch_size=32,
-    #                              # num_train_epochs='5',
-    #                              num_train_epochs=epochs,
-    #                              # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
-    #                              indicators=ind,
-    #                              identity_init=False)
-    #             #
-                # # Acc + uncertainty OOD
-                print('Plotting uncertainty OOD')
-                uncertainty_plot(task_name=dataset,
-                                 seeds=[2, 19, 729, 982, 75],
-                                 learning_rate='2e-05',
-                                 model_type=model,
-                                 per_gpu_train_batch_size=32,
-                                 num_train_epochs='5',
-                                 # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
-                                 indicators=ind,
-                                 ood=True)
-    #             #
-    #             print('Plotting uncertainty few shot')
+    # (2) Distil reliability diagram per method (ID)
+    # reliability_diagram(
+    #     # datasets=['imdb', 'sst-2'],
+    #     # datasets=['imdb', 'sst-2', 'ag_news', 'trec-6', ],
+    #     datasets=['imdb', 'sst-2', 'qqp', 'mnli'],
+    #     # 'qqp', 'mrpc', 'qnli', 'mnli', 'rte'],
+    #     models=['bert', 'distilbert'],
+    #     indicators=[None, 'bayes_output'],
+    #     per_method=False,
+    #     per_dataset=True,
+    #     ood=False
+    # )
+    #
+    # # (2) Distil reliability diagram per method (OOD)
+    # reliability_diagram(
+    #     # datasets=['imdb', 'sst-2'],
+    #     datasets=['imdb', 'sst-2', 'qqp', 'mnli'],
+    #     # 'qqp', 'mrpc', 'qnli', 'mnli', 'rte'],
+    #     models=['bert', 'distilbert'],
+    #     indicators=[None, 'bayes_output'],
+    #     per_method=False,
+    #     per_dataset=True,
+    #     ood=True
+    # )
+
+    # for dataset in datasets:
+    #     print(dataset)
+    #     for ind in indicators:
+    #         for model in models:
+    # #             print('Plotting uncertainty')
+    # #             # acc + uncertainty plot
+    # #             # epochs='20' if dataset == 'trec-6' else '5'
+    # #             uncertainty_plot(task_name=dataset,
+    # #                              seeds=[2, 19, 729, 982, 75],
+    # #                              learning_rate='2e-05',
+    # #                              model_type=model,
+    # #                              per_gpu_train_batch_size=32,
+    # #                              # num_train_epochs='5',
+    # #                              num_train_epochs=epochs,
+    # #                              # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
+    # #                              indicators=ind,
+    # #                              identity_init=False)
+    # #             #
+    #             # # Acc + uncertainty OOD
+    #             print('Plotting uncertainty OOD')
     #             uncertainty_plot(task_name=dataset,
     #                              seeds=[2, 19, 729, 982, 75],
     #                              learning_rate='2e-05',
@@ -782,36 +842,47 @@ if __name__ == '__main__':
     #                              num_train_epochs='5',
     #                              # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
     #                              indicators=ind,
-    #                              few_shot=True)
-    #             #
-    #             #
-    #             #     print('Plotting reliability diagram (vanilla)')
-    #             #     ece_plot(task_name=dataset,
-    #             #              seeds=[2, 19, 729, 982, 75],
-    #             #              learning_rate='2e-05',
-    #             #              per_gpu_train_batch_size=32,
-    #             #              # num_train_epochs='5',
-    #             #              num_train_epochs=epochs,
-    #             #              indicators=ind,
-    #             #              identity_init=False, )
-    #
-    #             print('Plotting reliability diagram (temp scale)')
-    #             ece_plot(task_name=dataset,
-    #                      seeds=[2, 19, 729, 982, 75],
-    #                      learning_rate='2e-05',
-    #                      model_type=model,
-    #                      per_gpu_train_batch_size=32,
-    #                      # num_train_epochs='5',
-    #                      num_train_epochs=epochs,
-    #                      indicators=ind,
-    #                      identity_init=False,
-    #                      plot_method='temp_scale')
-    #
-    #             # print('Plotting reliability diagram OOD (vanilla)')
-    #             # ece_plot(task_name=dataset,
-    #             #          seeds=[2, 19, 729, 982, 75, 281, 325, 195, 83, 4],
-    #             #          learning_rate='2e-05',
-    #             #          per_gpu_train_batch_size=32,
-    #             #          num_train_epochs='5',
-    #             #          indicators=ind,
-    #             #          ood=True, )
+    #                              ood=True)
+    # #             #
+    # #             print('Plotting uncertainty few shot')
+    # #             uncertainty_plot(task_name=dataset,
+    # #                              seeds=[2, 19, 729, 982, 75],
+    # #                              learning_rate='2e-05',
+    # #                              model_type=model,
+    # #                              per_gpu_train_batch_size=32,
+    # #                              num_train_epochs='5',
+    # #                              # indicators=[None, 'adapter', 'bayes_adapter', 'bayes_output'],
+    # #                              indicators=ind,
+    # #                              few_shot=True)
+    # #             #
+    # #             #
+    # #             #     print('Plotting reliability diagram (vanilla)')
+    # #             #     ece_plot(task_name=dataset,
+    # #             #              seeds=[2, 19, 729, 982, 75],
+    # #             #              learning_rate='2e-05',
+    # #             #              per_gpu_train_batch_size=32,
+    # #             #              # num_train_epochs='5',
+    # #             #              num_train_epochs=epochs,
+    # #             #              indicators=ind,
+    # #             #              identity_init=False, )
+    # #
+    # #             print('Plotting reliability diagram (temp scale)')
+    # #             ece_plot(task_name=dataset,
+    # #                      seeds=[2, 19, 729, 982, 75],
+    # #                      learning_rate='2e-05',
+    # #                      model_type=model,
+    # #                      per_gpu_train_batch_size=32,
+    # #                      # num_train_epochs='5',
+    # #                      num_train_epochs=epochs,
+    # #                      indicators=ind,
+    # #                      identity_init=False,
+    # #                      plot_method='temp_scale')
+    # #
+    # #             # print('Plotting reliability diagram OOD (vanilla)')
+    # #             # ece_plot(task_name=dataset,
+    # #             #          seeds=[2, 19, 729, 982, 75, 281, 325, 195, 83, 4],
+    # #             #          learning_rate='2e-05',
+    # #             #          per_gpu_train_batch_size=32,
+    # #             #          num_train_epochs='5',
+    # #             #          indicators=ind,
+    # #             #          ood=True, )
