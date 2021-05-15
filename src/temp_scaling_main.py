@@ -387,8 +387,6 @@ if __name__ == '__main__':
             best_temp = temp
     print(best_temp)
 
-    import pdb; pdb.set_trace();
-        
     new_val_logits = vanilla_val_logits / best_temp #.unsqueeze(1).expand(vanilla_val_logits.size(0), vanilla_val_logits.size(1))
     new_test_logits = vanilla_test_logits / best_temp #.unsqueeze(1).expand(vanilla_test_logits.size(0), vanilla_test_logits.size(1))
 
@@ -408,5 +406,3 @@ if __name__ == '__main__':
         temp_scores_ood = temp_scores_(new_logits_ood,vanilla_results_test_ood['gold_labels'],best_temp,args.dataset_name)
         with open(temp_json_file_ood, 'w') as f:
             json.dump(temp_scores_ood, f)
-
-    import pdb; pdb.set_trace();
