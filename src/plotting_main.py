@@ -583,12 +583,25 @@ def ac_ece_table(datasets, models, indicators, seeds=[2, 19, 729, 982, 75],
         new_results = new_results.drop(columns = "name")
         new_results= new_results[['metric','model', 'method','imdb', 'sst-2', 'ag_news','trec-6', 'qqp', 'mrpc', 'qnli', 'mnli', 'rte', 'avg']]
         create_dir(path)
-        
+
         new_results.to_csv(os.path.join(path, 'ac_ece_id_detailed.csv'), index = False)
 
         new_results.to_latex(os.path.join(path, 'ac_ece_id_detailed.tex'), index = False)
 
-        import pdb; pdb.set_trace();
+
+        if summarized_version:
+            
+
+            new_results = new_results.groupby(["metric", "model", "method"]).mean()["avg"]
+            new_results = pd.DataFrame(new_results)
+            new_results.reset_index(inplace=True)
+
+            new_results.T.to_csv(os.path.join(path, 'ac_ece_id_summary.csv'), index = False)
+
+            new_results.T.to_latex(os.path.join(path, 'ac_ece_id_summary.tex'), index = False)
+
+
+        print(" ---- finished id tables")
 
         return
 
