@@ -1,0 +1,25 @@
+,imdb,mnli,qqp,sst-2
+bert-UA-acc,87.8,84.3,86.6,83.6
+bert-UA-ece,2.07,3.05,8.97,8.78
+distilbert-UA-acc,86.5,81.9,86.4,82.0
+distilbert-UA-ece,2.75,2.69,8.45,10.73
+bert-UA + MC-5-acc,87.6,84.2,87.1,83.1
+bert-UA + MC-5-ece,2.48,1.16,8.33,8.11
+distilbert-UA + MC-5-acc,85.8,81.7,86.6,81.7
+distilbert-UA + MC-5-ece,3.07,1.2,8.33,10.2
+bert-mc20-acc,87.8,84.3,87.3,84.2
+bert-mc20-ece,2.36,1.21,8.23,7.72
+distilbert-mc20-acc,84.9,81.8,86.7,82.0
+distilbert-mc20-ece,2.23,1.07,8.48,10.12
+bert-mc5-acc,87.5,84.2,87.2,84.2
+bert-mc5-ece,2.3,1.47,8.35,7.77
+distilbert-mc5-acc,85.2,81.6,86.6,82.0
+distilbert-mc5-ece,2.53,1.16,8.55,10.21
+bert-temp_scale-acc,88.3,84.2,86.8,84.4
+bert-temp_scale-ece,2.19,0.72,7.75,5.98
+distilbert-temp_scale-acc,85.3,81.8,86.3,82.3
+distilbert-temp_scale-ece,2.14,0.8,7.8,8.36
+bert-vanilla-acc,88.3,84.2,86.8,84.4
+bert-vanilla-ece,3.11,2.99,8.9,8.64
+distilbert-vanilla-acc,85.3,81.8,86.3,82.3
+distilbert-vanilla-ece,2.23,2.81,8.8,10.77

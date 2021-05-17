@@ -1,0 +1,25 @@
+,0
+bert-UA-acc,85.57499999999999
+bert-UA-ece,5.717499999999999
+distilbert-UA-acc,84.2
+distilbert-UA-ece,6.154999999999999
+bert-UA + MC-5-acc,85.5
+bert-UA + MC-5-ece,5.02
+distilbert-UA + MC-5-acc,83.95
+distilbert-UA + MC-5-ece,5.699999999999999
+bert-mc20-acc,85.89999999999999
+bert-mc20-ece,4.88
+distilbert-mc20-acc,83.85
+distilbert-mc20-ece,5.475
+bert-mc5-acc,85.77499999999999
+bert-mc5-ece,4.9725
+distilbert-mc5-acc,83.85
+distilbert-mc5-ece,5.612500000000001
+bert-temp_scale-acc,85.92500000000001
+bert-temp_scale-ece,4.16
+distilbert-temp_scale-acc,83.925
+distilbert-temp_scale-ece,4.775
+bert-vanilla-acc,85.92500000000001
+bert-vanilla-ece,5.91
+distilbert-vanilla-acc,83.925
+distilbert-vanilla-ece,6.1525

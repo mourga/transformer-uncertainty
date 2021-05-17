@@ -18,6 +18,8 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 
+from scipy.stats import f_oneway, kruskal
+
 def read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_train_epochs,
                       indicators, methods, task_name, identity_init=False, ece=False,
                       ood=False, few_shot=None, model_type=None):
@@ -33,6 +35,8 @@ def read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_
         for ind in indicators:
             for method in methods:
                 res_filename = '{}_results'.format(method)
+                if method == "temp_scale":
+                    res_filename = '{}_results_NEW'.format(method)
                 if ind is not None: res_filename += '_{}'.format(ind)
                 if ood: res_filename += '_ood'
                 res_path = os.path.join(exp_path, "{}.json".format(res_filename))
@@ -41,8 +45,13 @@ def read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_
                 else:
                     with open(res_path) as json_file:
                         results = json.load(json_file)
+                        ###
+                        if (method == "temp_scale") and (ood):
+                            results = {"test_ood_results":results}
+                        ###
                         if ece:
                             if ood:
+                                
                                 val_results_bins = []
                                 test_results_bin = results['test_ood_results']['ece']['bins']
                                 df0 = pd.DataFrame(
@@ -99,7 +108,10 @@ def read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_
                                 val_ece, val_nll, val_brier, val_entropy = None, None, None, None
                             else:
                                 val_results = results['val_results']
-                                test_results = results['test_results']
+                                ####
+                                if method == "temp_scale": test_results = results['test_result']
+                                else: test_results = results['test_results']
+                                ####
                                 if 'acc' not in val_results.keys():
                                     val_acc, test_acc = None, None
                                     val_mcc = val_results['mcc']
@@ -429,6 +441,7 @@ def ac_ece_table(datasets, models, indicators, seeds=[2, 19, 729, 982, 75],
         for model_type in models:
             # for ood in [True, False]:
             # for ood in [False]:
+
             path = os.path.join(RES_DIR, '{}_{}_100%'.format(task_name, model_type))
             # if not os.path.exists(path): return
             # df = pd.DataFrame()
@@ -440,13 +453,14 @@ def ac_ece_table(datasets, models, indicators, seeds=[2, 19, 729, 982, 75],
                 df_list = []
                 # for f in ['sample_100', 'sample_1000', 'sample_10000']:
                 for f in ['sample_20', 'sample_200', 'sample_2000']:
+
                     df_ = read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, 20,
                                             indicators, methods, task_name, identity_init=False, ood=ood, few_shot=f,
                                             model_type=model_type)
                     df_['num_samples'] = int(f.split('_')[-1])
                     df = df.append(df_, ignore_index=True)
             else:
-
+                
                 df_ = read_results_json(seeds, path, learning_rate, per_gpu_train_batch_size, num_train_epochs,
                                         indicators, methods, task_name, identity_init=False, ood=ood,
                                         model_type=model_type)
@@ -494,10 +508,20 @@ def ac_ece_table(datasets, models, indicators, seeds=[2, 19, 729, 982, 75],
             for method in df_base_bay.method.unique():
                 
                 for model_ in df_base_bay.model_type.unique():
+                    
+                    try:
+                        new_results[task_name][model_ + "-" + method + "-acc"] = (df_base_bay[(df_base_bay.dataset == task_name) & (df_base_bay.model_type == model_) & (df_base_bay.method == method)]["test_acc"]*100).round(1).values[0]
+                        new_results[task_name][model_ + "-" + method + "-ece"] = (df_base_bay[(df_base_bay.dataset == task_name) & (df_base_bay.model_type == model_) & (df_base_bay.method == method)]["test_ece"]*100).round(2).values[0]
+                    except:
+                        new_results[task_name][model_ + "-" + method + "-acc"] = np.nan
+                        new_results[task_name][model_ + "-" + method + "-ece"] = np.nan
 
-                    new_results[task_name][model_ + "-" + method + "-acc"] = (df_base_bay[(df_base_bay.dataset == task_name) & (df_base_bay.model_type == model_) & (df_base_bay.method == method)]["test_acc"]*100).round(1).values[0]
-                    new_results[task_name][model_ + "-" + method + "-ece"] = (df_base_bay[(df_base_bay.dataset == task_name) & (df_base_bay.model_type == model_) & (df_base_bay.method == method)]["test_ece"]*100).round(2).values[0]
-
+                        print("**** ERROR for {} - {} - {} with value {}".format(
+                            task_name,
+                            method,
+                            model_,
+                            df_base_bay[(df_base_bay.dataset == task_name) & (df_base_bay.model_type == model_) & (df_base_bay.method == method)]
+                        ))
 
         new_results = pd.DataFrame(new_results)
 
@@ -514,6 +538,35 @@ def ac_ece_table(datasets, models, indicators, seeds=[2, 19, 729, 982, 75],
         new_results.mean(1).to_latex(os.path.join(path, 'ac_ece_ood_summary.tex'), index = True)
 
         print("--- ood results saved in {}".format(path))
+
+        #############significance test###############
+        new_results["name"] = new_results.index
+        new_results["model"] = new_results.name.apply(lambda x: x.split("-")[0])
+        new_results["method"] = new_results.name.apply(lambda x: x.split("-")[1])
+        new_results["metric"] = new_results.name.apply(lambda x: x.split("-")[-1])
+        new_results = new_results.drop(columns = "name")
+        
+        sig_test = {}
+
+        for model_ in df_base_bay["model_type"].unique():
+
+            ecee = new_results[(new_results.model == model_) & (new_results.metric == "ece")]
+            groups = ecee[datasets].values
+
+            sig_test[model_] = {}
+
+            stats = f_oneway(groups[0], groups[1], groups[2], groups[3], groups[4], groups[5])
+
+            sig_test[model_]["anova p-value"] = stats.pvalue
+
+            stats = kruskal(groups[0], groups[1], groups[2], groups[3], groups[4], groups[5])
+
+            sig_test[model_]["kruskal p-value"] = stats.pvalue
+
+
+        with open(os.path.join(path, 'sig_test_ood.json'), "w") as f:
+
+            json.dump(sig_test, f, indent=4)
 
         return 
         
@@ -596,9 +649,9 @@ def ac_ece_table(datasets, models, indicators, seeds=[2, 19, 729, 982, 75],
             new_results = pd.DataFrame(new_results)
             new_results.reset_index(inplace=True)
 
-            new_results.T.to_csv(os.path.join(path, 'ac_ece_id_summary.csv'), index = False)
+            new_results.to_csv(os.path.join(path, 'ac_ece_id_summary.csv'), index = False)
 
-            new_results.T.to_latex(os.path.join(path, 'ac_ece_id_summary.tex'), index = False)
+            new_results.to_latex(os.path.join(path, 'ac_ece_id_summary.tex'), index = False)
 
 
         print(" ---- finished id tables")
@@ -648,9 +701,9 @@ def reliability_diagram(datasets, models, indicators, seeds=[2, 19, 729, 982, 75
     temp_df = df_distil[df_distil["method"] == 'temp_scale']
 
     base_vanilla = vanilla_df[vanilla_df["indicator"] == 'Base']
-    bayes_vanilla = vanilla_df[vanilla_df["indicator"] == 'BayesOutput']
+    # bayes_vanilla = vanilla_df[vanilla_df["indicator"] == 'BayesOutput']
     base_temp = temp_df[temp_df["indicator"] == 'Base']
-    bayes_temp = temp_df[temp_df["indicator"] == 'BayesOutput']
+    # bayes_temp = temp_df[temp_df["indicator"] == 'BayesOutput']
     base_mc = mc_df[mc_df["indicator"] == 'Base']
     bayes_mc = mc_df[mc_df["indicator"] == 'BayesOutput']
 
@@ -658,8 +711,8 @@ def reliability_diagram(datasets, models, indicators, seeds=[2, 19, 729, 982, 75
         ax2unc = {1: base_vanilla,
                   2: base_mc,
                   3: base_temp,
-                  4: bayes_vanilla,
-                  5: bayes_mc}
+                #   4: bayes_vanilla,
+                  4: bayes_mc}
 
         dataset2color = {'imdb': 'C0',
                          'sst-2': 'C1',
@@ -673,9 +726,9 @@ def reliability_diagram(datasets, models, indicators, seeds=[2, 19, 729, 982, 75
                          }
 
         # Plot
-        fig, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(1, 5, sharey=True, figsize=(10, 2))
+        fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, sharey=True, figsize=(10, 2))
 
-        for i, ax in enumerate([ax1, ax2, ax3, ax4, ax5]):
+        for i, ax in enumerate([ax1, ax2, ax3, ax4]):
             ax.set_xlim([0, 1])
             ax.set_ylim([0, 1])
             start, end = ax.get_ylim()
@@ -705,8 +758,8 @@ def reliability_diagram(datasets, models, indicators, seeds=[2, 19, 729, 982, 75
         ax1.set_title('Vanilla', fontsize=7)
         ax2.set_title('MC Dropout', fontsize=7)
         ax3.set_title('Temperature Scaling', fontsize=7)
-        ax4.set_title('Bayesian Layer', fontsize=7)
-        ax5.set_title('Bayesian Layer + MC', fontsize=7)
+        # ax4.set_title('Bayesian Layer', fontsize=7)
+        ax4.set_title('Bayesian Layer + MC', fontsize=7)
 
         plt.legend(bbox_to_anchor=(1.3, 1), borderaxespad=0., fontsize=8)
 
@@ -722,16 +775,12 @@ def reliability_diagram(datasets, models, indicators, seeds=[2, 19, 729, 982, 75
         method2color = {'Base + vanilla': 'C0',
                          'Base + mc5': 'C1',
                          'Base + temp_scale': 'C2',
-                         'BayesOutput + vanilla': 'C3',
-                         'BayesOutput + mc5': 'C4',
-                         'BayesOutput + temp_scale': 'C5',
+                         'BayesOutput + mc5': 'C4'
                          }
         method2figname = {'Base + vanilla': 'Vanilla',
                           'Base + temp_scale': 'Temp.Sc.',
                          'Base + mc5': 'MC-5',
-                         'BayesOutput + vanilla': 'UA',
-                         'BayesOutput + mc5': 'UA+MC-5',
-                         'BayesOutput + temp_scale': '-',
+                         'BayesOutput + mc5': 'UA+MC-5'
                          }
         fig, axs = plt.subplots(1, len(datasets), sharey=True, figsize=(7, 2))
 
@@ -753,8 +802,10 @@ def reliability_diagram(datasets, models, indicators, seeds=[2, 19, 729, 982, 75
             data = df_distil[df_distil['dataset'] == dataset]
             data['model_unc'] = data.apply(lambda row: row.indicator + ' + ' + row.method, axis=1)
 
-            skip = ["mc3", "mc10", "mc20", 'BayesOutput + temp_scale']
+            skip = ["mc3", "mc10", "mc20", 'BayesOutput + temp_scale', 'BayesOutput + vanilla']
             uncertainty_methods = [x for x in set(data['model_unc']) if not any(y in x for y in skip)]
+            
+
             # plot per method
             for method in [x for x in method2figname.keys() if not any(y in x for y in skip)]:#uncertainty_methods:
                 _data = data[data["model_unc"] == method]
@@ -793,21 +844,21 @@ if __name__ == '__main__':
 
     epochs = '5'
 
-    # # (1) ID & ECE TABLE
-    ac_ece_table(
-        datasets=['imdb', 'sst-2', 'ag_news', 'trec-6', 'qqp', 'mrpc', 'qnli', 'mnli', 'rte'],
-        models=['bert', 'distilbert'],
-        indicators=[None, 'bayes_output'],
-        summarized_version = True
-    )
-
-    # # # (1) OOD & ECE TABLE
+    # # # (1) ID & ECE TABLE
     # ac_ece_table(
-    #     datasets=['sst-2', 'imdb', 'qqp', 'mnli',],
+    #     datasets=['imdb', 'sst-2', 'ag_news', 'trec-6', 'qqp', 'mrpc', 'qnli', 'mnli', 'rte'],
     #     models=['bert', 'distilbert'],
     #     indicators=[None, 'bayes_output'],
-    #     ood=True
+    #     summarized_version = True
     # )
+
+    # (1) OOD & ECE TABLE
+    ac_ece_table(
+        datasets=['sst-2', 'imdb', 'qqp', 'mnli',],
+        models=['bert', 'distilbert'],
+        indicators=[None, 'bayes_output'],
+        ood=True
+    )
 
     # (2) Distil reliability diagram per method (ID)
     # reliability_diagram(
@@ -822,7 +873,7 @@ if __name__ == '__main__':
     #     ood=False
     # )
     #
-    # # (2) Distil reliability diagram per method (OOD)
+    # (2) Distil reliability diagram per method (OOD)
     # reliability_diagram(
     #     # datasets=['imdb', 'sst-2'],
     #     datasets=['imdb', 'sst-2', 'qqp', 'mnli'],
